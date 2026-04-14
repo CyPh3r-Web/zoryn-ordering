@@ -1,0 +1,135 @@
+.feedback-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.feedback-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.feedback-header h1 {
+    color: #5d4037;
+    margin-bottom: 10px;
+}
+
+.feedback-header p {
+    color: #666;
+}
+
+.order-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.feedback-products {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.feedback-product-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.feedback-product-card img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.feedback-product-card p {
+    margin: 10px 0;
+    font-weight: 500;
+}
+
+.feedback-rating-container {
+    margin-top: 10px;
+}
+
+.feedback-rating {
+    display: flex;
+    flex-direction: row-reverse; /* Reverse the direction */
+    justify-content: center;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.feedback-rating input[type="radio"] {
+    display: none;
+}
+
+.feedback-rating label {
+    color: #ddd;
+    font-size: 20px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.feedback-rating label:before {
+    content: '★';
+}
+
+.feedback-rating input[type="radio"]:checked ~ label {
+    color: #ffc107;
+}
+
+.feedback-rating:hover label {
+    color: #ddd;
+}
+
+.feedback-rating label:hover,
+.feedback-rating label:hover ~ label {
+    color: #ffc107;
+}
+
+.feedback-comment {
+    margin-top: 20px;
+}
+
+.feedback-comment label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 500;
+    color: #333;
+}
+
+.feedback-comment textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 100px;
+}
+
+.submit-feedback-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background-color: #5d4037;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+    transition: background-color 0.2s;
+}
+
+.submit-feedback-btn:hover {
+    background-color: #3c2415;
+}

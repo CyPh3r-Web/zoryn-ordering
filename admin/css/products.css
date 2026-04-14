@@ -1,0 +1,940 @@
+/* Products Dashboard Styles */
+:root {
+    --primary-bg: #634832;
+    --nav-bg: #ece0d1;
+    --text-dark: #634832;
+    --active-tab: #4A3527;
+    --inactive-tab: #F5EBE0;
+    --success-color: #4CAF50;
+    --warning-color: #FFC107;
+    --danger-color: #F44336;
+    --info-color: #2196F3;
+    --border-color: #e0d5c1;
+    --hover-color: #f5ebe0;
+}
+
+/* Products Container */
+.products-container {
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin: 20px;
+}
+
+/* Products Header */
+.products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.products-header h1 {
+    color: var(--text-dark);
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.products-filter {
+    display: flex;
+    gap: 15px;
+}
+
+.products-filter select,
+.products-filter input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: #fff;
+    color: var(--text-dark);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.products-filter select:focus,
+.products-filter input:focus {
+    border-color: var(--primary-bg);
+}
+
+/* Products Summary Panels */
+.products-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.summary-panel {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+
+.summary-panel:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.panel-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+.total-products .panel-icon {
+    background-color: rgba(99, 72, 50, 0.1);
+    color: var(--primary-bg);
+}
+
+.total-ingredients .panel-icon {
+    background-color: rgba(33, 150, 243, 0.1);
+    color: var(--info-color);
+}
+
+.low-stock .panel-icon {
+    background-color: rgba(244, 67, 54, 0.1);
+    color: var(--danger-color);
+}
+
+.panel-icon i {
+    font-size: 20px;
+}
+
+.panel-info h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #666;
+}
+
+.panel-count {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+/* Tabs Navigation */
+.tabs-container {
+    margin-bottom: 30px;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    padding: 12px 24px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-dark);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    z-index: 1;
+}
+
+.tab-btn:hover {
+    color: var(--primary-bg);
+}
+
+.tab-btn.active {
+    color: var(--primary-bg);
+    border-bottom-color: var(--primary-bg);
+}
+
+.tab-content {
+    position: relative;
+}
+
+.tab-pane {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.tab-pane.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Action Bar */
+.action-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+}
+
+.add-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background-color: var(--primary-bg);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.add-btn:hover {
+    background-color: var(--active-tab);
+}
+
+.add-btn i {
+    font-size: 14px;
+}
+
+/* Tables */
+.products-table-container,
+.ingredients-table-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.products-table,
+.ingredients-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.products-table th,
+.ingredients-table th {
+    background-color: var(--inactive-tab);
+    color: var(--text-dark);
+    font-weight: 600;
+    text-align: left;
+    padding: 15px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.products-table td,
+.ingredients-table td {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+    color: #333;
+}
+
+.products-table tbody tr:hover,
+.ingredients-table tbody tr:hover {
+    background-color: var(--hover-color);
+}
+
+/* Product Image */
+.product-img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+/* Ingredient Tags */
+.ingredient-tag {
+    display: inline-block;
+    padding: 4px 8px;
+    background-color: rgba(99, 72, 50, 0.1);
+    color: var(--primary-bg);
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    position: relative;
+}
+
+.remove-ingredient {
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--danger-color);
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.status-badge.active {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: var(--success-color);
+}
+
+.status-badge.inactive {
+    background-color: rgba(158, 158, 158, 0.1);
+    color: #757575;
+}
+
+.status-badge.low {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: var(--warning-color);
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background-color: transparent;
+    color: #666;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.action-btn.edit {
+    color: var(--info-color);
+}
+
+.action-btn.edit:hover {
+    background-color: rgba(33, 150, 243, 0.1);
+}
+
+.action-btn.view {
+    color: var(--primary-bg);
+}
+
+.action-btn.view:hover {
+    background-color: rgba(99, 72, 50, 0.1);
+}
+
+.action-btn.delete {
+    color: var(--danger-color);
+}
+
+.action-btn.delete:hover {
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--text-dark);
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.close-btn:hover {
+    color: var(--danger-color);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-dark);
+    font-weight: 500;
+    font-size: 14px;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: #fff;
+    color: var(--text-dark);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--primary-bg);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Ingredients Selector */
+.ingredients-selector {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    background-color: #fff;
+}
+
+.selected-ingredients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 10px;
+    min-height: 30px;
+}
+
+.select-ingredients-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    background-color: var(--inactive-tab);
+    color: var(--text-dark);
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.select-ingredients-btn:hover {
+    background-color: var(--hover-color);
+}
+
+/* Ingredients List */
+.ingredients-search {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.ingredients-search input {
+    width: 100%;
+    padding: 12px 15px;
+    padding-left: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: #f8f8f8;
+    transition: all 0.3s ease;
+}
+
+.ingredients-search input:focus {
+    background-color: #fff;
+    border-color: var(--primary-bg);
+    box-shadow: 0 0 0 2px rgba(99, 72, 50, 0.1);
+    outline: none;
+}
+
+.ingredients-search::before {
+    content: '\f002';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    font-size: 14px;
+}
+
+.no-results-message,
+.no-ingredients {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: #666;
+    grid-column: 1 / -1;
+}
+
+.no-results-message i,
+.no-ingredients i {
+    font-size: 48px;
+    color: var(--border-color);
+    margin-bottom: 15px;
+}
+
+.no-results-message p,
+.no-ingredients p {
+    font-size: 16px;
+    margin: 0;
+}
+
+.ingredients-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.ingredient-item {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    position: relative;
+    cursor: pointer;
+}
+
+.ingredient-item:hover {
+    border-color: var(--primary-bg);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.ingredient-image {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+    background-color: #f8f8f8;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    transition: transform 0.3s ease;
+}
+
+.ingredient-item:hover .ingredient-image {
+    transform: scale(1.05);
+}
+
+.ingredient-content {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #fff;
+    position: relative;
+}
+
+.ingredient-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+.ingredient-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.ingredient-checkbox:hover {
+    background-color: rgba(99, 72, 50, 0.05);
+}
+
+.ingredient-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-bg);
+    position: relative;
+    z-index: 2;
+}
+
+.ingredient-name {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    font-size: 16px;
+    cursor: pointer;
+    flex: 1;
+}
+
+.ingredient-category {
+    background-color: var(--inactive-tab);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text-dark);
+    white-space: nowrap;
+}
+
+.ingredient-stock {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background-color: #f8f8f8;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+.ingredient-stock i {
+    color: var(--primary-bg);
+}
+
+.ingredient-inputs {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.input-group {
+    flex: 1;
+}
+
+.input-group label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.input-group input,
+.input-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: #fff;
+    transition: border-color 0.3s;
+}
+
+.input-group input:focus,
+.input-group select:focus {
+    border-color: var(--primary-bg);
+    outline: none;
+}
+
+/* Remove the clickable overlay */
+.ingredient-item::after {
+    display: none;
+}
+
+/* Ensure the checkbox and its label are above the clickable overlay */
+.ingredient-checkbox,
+.ingredient-checkbox input[type="checkbox"],
+.ingredient-checkbox label {
+    position: relative;
+    z-index: 2;
+}
+
+/* Add a visual indicator when the card is selected */
+.ingredient-item.selected {
+    border-color: var(--primary-bg);
+    background-color: rgba(99, 72, 50, 0.02);
+}
+
+.ingredient-item.selected .ingredient-checkbox {
+    background-color: rgba(99, 72, 50, 0.05);
+}
+
+.ingredient-item.selected .ingredient-checkbox input[type="checkbox"] {
+    accent-color: var(--primary-bg);
+}
+
+/* Selected Ingredients Preview */
+.selected-ingredients-preview {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+}
+
+.selected-ingredients-preview h3 {
+    font-size: 14px;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+.selected-ingredients-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.selected-ingredient-tag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    background-color: var(--primary-bg);
+    color: white;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.selected-ingredient-tag .remove-btn {
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.8;
+    transition: opacity 0.3s;
+}
+
+.selected-ingredient-tag .remove-btn:hover {
+    opacity: 1;
+}
+
+/* Modal Actions */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.modal-actions button {
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.modal-actions .cancel-btn {
+    background-color: #f5f5f5;
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+}
+
+.modal-actions .cancel-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.modal-actions .confirm-btn {
+    background-color: var(--primary-bg);
+    color: white;
+    border: none;
+}
+
+.modal-actions .confirm-btn:hover {
+    background-color: var(--active-tab);
+}
+
+/* Responsive Styles */
+@media (max-width: 992px) {
+    .products-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .low-stock {
+        grid-column: span 2;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .products-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .products-filter {
+        width: 100%;
+    }
+    
+    .products-filter select,
+    .products-filter input {
+        flex: 1;
+    }
+    
+    .products-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .low-stock {
+        grid-column: span 1;
+    }
+    
+    .tabs {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .tab-btn {
+        padding: 10px 16px;
+    }
+    
+    .ingredients-list {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+    
+    .ingredient-image {
+        height: 160px;
+        padding: 15px;
+    }
+}
+
+@media (max-width: 576px) {
+    .products-container {
+        padding: 15px;
+        margin: 10px;
+    }
+    
+    .products-filter {
+        flex-direction: column;
+    }
+    
+    .panel-info h3 {
+        font-size: 14px;
+    }
+    
+    .panel-count {
+        font-size: 20px;
+    }
+    
+    .modal-content {
+        width: 95%;
+    }
+    
+    .ingredients-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .ingredient-image {
+        height: 140px;
+        padding: 10px;
+    }
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.form-actions button {
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.form-actions .cancel-btn {
+    background-color: #f5f5f5;
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+}
+
+.form-actions .cancel-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.form-actions .save-btn {
+    background-color: var(--primary-bg);
+    color: white;
+    border: none;
+}
+
+.form-actions .save-btn:hover {
+    background-color: var(--active-tab);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}

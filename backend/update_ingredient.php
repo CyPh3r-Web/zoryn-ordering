@@ -1,0 +1,82 @@
+<?php
+require_once 'dbconn.php';
+
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        // Get form data
+        $ingredientId = $_POST['ingredientId'];
+        $ingredientName = $_POST['ingredientName'];
+        $categoryId = $_POST['ingredientCategory'];
+        $stock = $_POST['ingredientStock'];
+        $unit = $_POST['ingredientUnit'];
+        $status = $_POST['ingredientStatus'];
+
+        // Start transaction
+        $conn->begin_transaction();
+
+        // Update ingredient
+        $sql = "UPDATE ingredients 
+                SET ingredient_name = ?, 
+                    category_id = ?, 
+                    stock = ?, 
+                    unit = ?, 
+                    status = ?,
+                    updated_at = NOW()
+                WHERE ingredient_id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sidssi", $ingredientName, $categoryId, $stock, $unit, $status, $ingredientId);
+
+        // Handle image upload if provided
+        if (isset($_FILES['ingredientImage']) && $_FILES['ingredientImage']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = '../assets/images/ingredients/';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            
+            $fileExtension = pathinfo($_FILES['ingredientImage']['name'], PATHINFO_EXTENSION);
+            $fileName = uniqid() . '.' . $fileExtension;
+            $targetPath = $uploadDir . $fileName;
+            
+            if (move_uploaded_file($_FILES['ingredientImage']['tmp_name'], $targetPath)) {
+                $imagePath = 'assets/images/ingredients/' . $fileName;
+                
+                // Update ingredient image
+                $sql = "UPDATE ingredients SET image_path = ? WHERE ingredient_id = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("si", $imagePath, $ingredientId);
+                $stmt->execute();
+            }
+        }
+
+        if ($stmt->execute()) {
+            // Commit transaction
+            $conn->commit();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Ingredient updated successfully'
+            ]);
+        } else {
+            throw new Exception("Failed to update ingredient");
+        }
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        $conn->rollback();
+        
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+} else {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Invalid request method'
+    ]);
+}
+
+// Close the connection
+$conn->close();
+?> 
