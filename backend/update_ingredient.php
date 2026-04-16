@@ -6,12 +6,16 @@ header('Content-Type: application/json');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // Get form data
-        $ingredientId = $_POST['ingredientId'];
+        $ingredientId = isset($_POST['ingredientId']) ? (int) $_POST['ingredientId'] : 0;
         $ingredientName = $_POST['ingredientName'];
         $categoryId = $_POST['ingredientCategory'];
         $stock = $_POST['ingredientStock'];
         $unit = $_POST['ingredientUnit'];
         $status = $_POST['ingredientStatus'];
+
+        if ($ingredientId <= 0) {
+            throw new Exception("Invalid ingredient ID");
+        }
 
         // Start transaction
         $conn->begin_transaction();
@@ -51,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($stmt->execute()) {
+            if ($stmt->affected_rows === 0) {
+                throw new Exception("No ingredient was updated. Please check the ingredient ID.");
+            }
             // Commit transaction
             $conn->commit();
             

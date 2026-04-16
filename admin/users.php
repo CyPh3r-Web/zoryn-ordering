@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/users.css">
+    <link rel="stylesheet" href="../assets/css/zoryn-theme.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Active Page Detection -->
@@ -306,7 +307,7 @@
                             icon: 'error',
                             title: 'Error',
                             text: 'Failed to fetch user data',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         });
                     });
             });
@@ -355,7 +356,7 @@
                     icon: 'warning',
                     title: 'Warning',
                     text: 'Please fill in all fields',
-                    confirmButtonColor: '#634832'
+                    confirmButtonColor: '#D4AF37'
                 });
                 return;
             }
@@ -375,7 +376,7 @@
                         icon: 'success',
                         title: 'Success',
                         text: 'User added successfully',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     }).then(() => {
                         window.location.reload();
                     });
@@ -384,7 +385,7 @@
                         icon: 'error',
                         title: 'Error',
                         text: data.message || 'Failed to add user',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 }
             })
@@ -394,7 +395,7 @@
                     icon: 'error',
                     title: 'Error',
                     text: 'Failed to add user',
-                    confirmButtonColor: '#634832'
+                    confirmButtonColor: '#D4AF37'
                 });
             });
         });
@@ -413,7 +414,7 @@
                     icon: 'warning',
                     title: 'Warning',
                     text: 'Please fill in all fields',
-                    confirmButtonColor: '#634832'
+                    confirmButtonColor: '#D4AF37'
                 });
                 return;
             }
@@ -440,7 +441,7 @@
                         icon: 'success',
                         title: 'Success',
                         text: 'User updated successfully',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     }).then(() => {
                         window.location.reload();
                     });
@@ -449,7 +450,7 @@
                         icon: 'error',
                         title: 'Error',
                         text: data.message || 'Failed to update user',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 }
             })
@@ -459,7 +460,7 @@
                     icon: 'error',
                     title: 'Error',
                     text: 'Failed to update user',
-                    confirmButtonColor: '#634832'
+                    confirmButtonColor: '#D4AF37'
                 });
             });
         });
@@ -483,7 +484,7 @@
                         icon: 'success',
                         title: 'Success',
                         text: 'User deleted successfully',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     }).then(() => {
                         window.location.reload();
                     });
@@ -492,7 +493,7 @@
                         icon: 'error',
                         title: 'Error',
                         text: data.message || 'Failed to delete user',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 }
             })
@@ -502,7 +503,7 @@
                     icon: 'error',
                     title: 'Error',
                     text: 'Failed to delete user',
-                    confirmButtonColor: '#634832'
+                    confirmButtonColor: '#D4AF37'
                 });
             });
         });

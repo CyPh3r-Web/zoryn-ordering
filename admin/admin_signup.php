@@ -243,6 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Register - Zoryn</title>
+    <link rel="icon" type="image/jpeg" href="../assets/zoryn/zoryn.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -459,10 +460,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         <div class="brand-container">
             <div class="logo-container">
-                <img src="../assets/zoryn/logo.png" alt="Zoryn Logo" class="logo">
+                <img src="../assets/zoryn/zoryn_logo.jpg" alt="Zoryn Logo" class="logo">
             </div>
             <h2 class="brand-name">ZORYN</h2>
-            <img src="../assets/zoryn/login_header.png" alt="Coffee Illustration" class="coffee-illustration">
+            <img src="../assets/zoryn/zoryn.jpg" alt="Coffee Illustration" class="coffee-illustration">
         </div>
     </div>
 

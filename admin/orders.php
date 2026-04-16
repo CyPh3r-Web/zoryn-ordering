@@ -1,3 +1,13 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: admin_login.php");
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,6 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/orders.css">
+    <link rel="stylesheet" href="../assets/css/zoryn-theme.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <!-- SweetAlert2 CSS and JS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.7.12/sweetalert2.min.css">
@@ -16,115 +27,286 @@
     <!-- Active Page Detection -->
     <script src="js/active-page.js"></script>
     <style>
-        .status-buttons {
-            display: inline-flex;
-            gap: 5px;
-            margin-left: 10px;
-        }
-        
+        .status-buttons { display: inline-flex; gap: 5px; margin-left: 10px; }
         .status-btn {
-            padding: 5px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-left: 10px;
-            font-size: 14px;
+            padding: 6px 14px; border: none; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s ease; display: inline-flex; align-items: center;
+            gap: 6px; font-size: 12px; font-weight: 600; font-family: 'Poppins', sans-serif;
         }
-        
-        .status-btn.preparing {
-            background-color: #17a2b8;
-            color: #fff;
-        }
-        
-        .status-btn.completed {
-            background-color: #28a745;
-            color: #fff;
-        }
-        
+        .status-btn.preparing { background: rgba(116,185,255,0.2); color: #74B9FF; }
+        .status-btn.preparing:hover { background: rgba(116,185,255,0.3); }
+        .status-btn.completed { background: rgba(0,184,148,0.2); color: #00B894; }
+        .status-btn.completed:hover { background: rgba(0,184,148,0.3); }
         .status-badge {
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 14px;
-            margin-left: 10px;
+            padding: 4px 12px; border-radius: 9999px; font-size: 11px;
+            font-weight: 600; display: inline-flex; align-items: center; gap: 4px;
         }
-        
-        .status-badge.completed {
-            background-color: #28a745;
+        .status-badge.completed { background: rgba(0,184,148,0.15); color: #00B894; }
+        .status-badge i { font-size: 10px; }
+        .action-buttons { display: flex; align-items: center; gap: 8px; }
+
+        .swal-modern-product-popup {
+            background:
+                radial-gradient(circle at top right, rgba(212, 175, 55, 0.14), transparent 28%),
+                linear-gradient(180deg, #191919 0%, #111111 100%) !important;
+            border: 1px solid rgba(212, 175, 55, 0.18) !important;
+            border-radius: 24px !important;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45) !important;
+            color: #f5f5f5 !important;
+            padding: 1.25rem !important;
+        }
+
+        .product-modal-title {
+            color: #f8e7a4 !important;
+            font-size: 1.1rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.01em;
+        }
+
+        .product-modal-content {
+            margin: 0 !important;
+            padding-top: 0.5rem !important;
+        }
+
+        .swal-modern-product-confirm,
+        .swal-modern-product-deny {
+            border-radius: 12px !important;
+            padding: 0.75rem 1.35rem !important;
+            font-weight: 700 !important;
+        }
+
+        .swal-modern-product-confirm {
+            color: #111 !important;
+            box-shadow: 0 10px 24px rgba(212, 175, 55, 0.22) !important;
+        }
+
+        .swal-modern-product-deny {
+            box-shadow: 0 10px 24px rgba(220, 53, 69, 0.2) !important;
+        }
+
+        .swal-modern-product-close {
+            color: #d7b75b !important;
+        }
+
+        .product-view-modal {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            text-align: left;
+        }
+
+        .product-modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding-bottom: 6px;
+        }
+
+        .product-modal-header-info h2 {
+            margin: 0;
             color: #fff;
+            font-size: 1.45rem;
+            font-weight: 700;
         }
-        
-        .status-btn:hover {
-            opacity: 0.9;
+
+        .product-modal-subtitle {
+            color: #9ca3af;
+            font-size: 13px;
+            margin-top: 4px;
         }
-        
-        .action-buttons {
+
+        .product-modal-status {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: capitalize;
+            margin-top: 10px;
+        }
+
+        .product-modal-status.pending {
+            background: rgba(255, 193, 7, 0.16);
+            color: #ffd666;
+        }
+
+        .product-modal-status.preparing {
+            background: rgba(116, 185, 255, 0.18);
+            color: #8fcbff;
+        }
+
+        .product-modal-status.completed {
+            background: rgba(0, 184, 148, 0.18);
+            color: #78ebca;
+        }
+
+        .product-info-section {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .product-info-card,
+        .product-section-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(212, 175, 55, 0.12);
+            border-radius: 18px;
+            padding: 16px;
+        }
+
+        .product-info-card {
             display: flex;
             align-items: center;
+            gap: 14px;
+        }
+
+        .product-info-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(212, 175, 55, 0.12);
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            color: #f4d26b;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .product-info-content {
+            min-width: 0;
+        }
+
+        .product-info-label,
+        .product-section-title {
+            color: #9d9d9d;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .product-info-value {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 6px;
+            word-break: break-word;
+        }
+
+        .product-section-title {
+            margin: 0 0 12px;
+        }
+
+        .order-items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .order-item-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .order-item-image {
+            width: 74px;
+            height: 74px;
+            border-radius: 16px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, #222, #141414);
+            border: 1px solid rgba(212, 175, 55, 0.12);
+        }
+
+        .order-item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .order-item-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .order-item-name {
+            margin: 0 0 6px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .order-item-meta {
+            display: flex;
+            flex-wrap: wrap;
             gap: 8px;
         }
-        
-        .action-btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
-        .action-btn.view {
-            background-color: #e9ecef;
-            color: #495057;
-        }
-        
-        .action-btn.view:hover {
-            background-color: #dee2e6;
-        }
-        
-        .status-btn {
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            border: none;
-            color: white;
-        }
-        
-        .status-btn.preparing {
-            background-color: #0d6efd;
-        }
-        
-        .status-btn.completed {
-            background-color: #198754;
-        }
-        
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: 500;
+
+        .order-item-pill {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            color: white;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(212, 175, 55, 0.1);
+            color: #f6e2a2;
+            font-size: 12px;
+            font-weight: 600;
         }
-        
-        .status-badge.completed {
-            background-color: #198754;
+
+        .order-total-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(212, 175, 55, 0.12);
         }
-        
-        .status-badge i {
-            font-size: 16px;
+
+        .order-total-label {
+            color: #9d9d9d;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .order-total-value {
+            color: #f4d26b;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .view-empty-note {
+            color: #9d9d9d;
+            font-size: 13px;
+        }
+
+        @media (max-width: 680px) {
+            .product-modal-header {
+                flex-direction: column;
+            }
+
+            .product-info-section {
+                grid-template-columns: 1fr;
+            }
+
+            .order-item-card {
+                align-items: flex-start;
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -134,9 +316,9 @@
     
     <div class="main-content">
         <div class="orders-container">
-            <div class="orders-header">
-                <h1>Orders Management</h1>
-                <div class="orders-filter">
+            <div class="page-header">
+                <h1><i class="fas fa-receipt"></i>Orders Management</h1>
+                <div class="filter-bar">
                     <input type="date" id="orderDateFilter" placeholder="Filter by date">
                 </div>
             </div>
@@ -247,71 +429,81 @@
                 .then(data => {
                     if (data.success) {
                         const order = data.order;
-                        let itemsHtml = '';
-                        
-                        if (order.items && order.items.length > 0) {
-                            itemsHtml = order.items.map(item => `
+                        const orderStatusLabel = order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1);
+                        const statusIconClass = order.order_status === 'pending'
+                            ? 'fa-clock'
+                            : order.order_status === 'preparing'
+                                ? 'fa-utensils'
+                                : 'fa-check-circle';
+                        const itemsHtml = order.items && order.items.length > 0
+                            ? order.items.map(item => `
                                 <div class="order-item-card">
-                                    <div class="item-image">
-                                        <img src="../${item.image_path}" alt="${item.product_name}" onerror="this.src='../images/default-product.png'">
+                                    <div class="order-item-image">
+                                        <img src="../${item.image_path || 'assets/images/products/default.jpg'}" alt="${item.product_name}" onerror="this.onerror=null;this.src='../assets/images/products/default.jpg';">
                                     </div>
-                                    <div class="item-details">
-                                        <h4 class="item-name">${item.product_name}</h4>
-                                        <div class="item-quantity">Quantity: ${item.quantity}</div>
-                                        <div class="item-price">₱${parseFloat(item.price).toFixed(2)}</div>
-                                        <div class="item-total">Total: ₱${parseFloat(item.price * item.quantity).toFixed(2)}</div>
+                                    <div class="order-item-details">
+                                        <h4 class="order-item-name">${item.product_name}</h4>
+                                        <div class="order-item-meta">
+                                            <span class="order-item-pill">Qty: ${item.quantity}</span>
+                                            <span class="order-item-pill">Price: ₱${parseFloat(item.price).toFixed(2)}</span>
+                                            <span class="order-item-pill">Subtotal: ₱${parseFloat(item.price * item.quantity).toFixed(2)}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            `).join('');
-                        }
+                            `).join('')
+                            : '<span class="view-empty-note">No order items found.</span>';
                         
                         Swal.fire({
-                            title: `<div class="modal-header">
-                                <div class="order-header-info">
+                            title: `<div class="product-modal-header">
+                                <div class="product-modal-header-info">
                                     <h2>Order #${order.order_id}</h2>
-                                    <div class="order-status ${order.order_status}">
-                                        <i class="fas ${order.order_status === 'pending' ? 'fa-clock' : 
-                                                         order.order_status === 'preparing' ? 'fa-utensils' : 
-                                                         'fa-check-circle'}"></i>
-                                        ${order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1)}
+                                    <div class="product-modal-status ${order.order_status}">
+                                        <i class="fas ${statusIconClass}"></i>
+                                        ${orderStatusLabel}
                                     </div>
                                 </div>
-                                <div class="order-date">${new Date(order.created_at).toLocaleString()}</div>
+                                <div class="product-modal-subtitle">${new Date(order.created_at).toLocaleString()}</div>
                             </div>`,
                             html: `
-                                <div class="order-details">
-                                    <div class="order-info-section">
-                                        <div class="info-card">
-                                            <div class="info-icon">
+                                <div class="product-view-modal">
+                                    <div class="product-info-section">
+                                        <div class="product-info-card">
+                                            <div class="product-info-icon">
                                                 <i class="fas fa-user"></i>
                                             </div>
-                                            <div class="info-content">
-                                                <div class="info-label">Customer</div>
-                                                <div class="info-value">${order.customer_name}</div>
+                                            <div class="product-info-content">
+                                                <div class="product-info-label">Customer</div>
+                                                <div class="product-info-value">${order.customer_name}</div>
                                             </div>
                                         </div>
-                                        <div class="info-card">
-                                            <div class="info-icon">
+                                        <div class="product-info-card">
+                                            <div class="product-info-icon">
                                                 <i class="fas fa-shopping-bag"></i>
                                             </div>
-                                            <div class="info-content">
-                                                <div class="info-label">Order Type</div>
-                                                <div class="info-value">${order.order_type}</div>
+                                            <div class="product-info-content">
+                                                <div class="product-info-label">Order Type</div>
+                                                <div class="product-info-value">${order.order_type}</div>
+                                            </div>
+                                        </div>
+                                        <div class="product-info-card">
+                                            <div class="product-info-icon">
+                                                <i class="fas fa-receipt"></i>
+                                            </div>
+                                            <div class="product-info-content">
+                                                <div class="product-info-label">Items</div>
+                                                <div class="product-info-value">${order.item_count || (order.items ? order.items.length : 0)} item(s)</div>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <div class="order-items-section">
-                                        <h3 class="section-title">
-                                            <i class="fas fa-list"></i>
-                                            Order Items
-                                        </h3>
-                                        <div class="order-items-grid">
+                                    <div class="product-section-card">
+                                        <h3 class="product-section-title">Order Items</h3>
+                                        <div class="order-items-list">
                                             ${itemsHtml}
                                         </div>
-                                        <div class="order-total">
-                                            <div class="total-label">Total Amount</div>
-                                            <div class="total-value">₱${parseFloat(order.total_amount).toFixed(2)}</div>
+                                        <div class="order-total-bar">
+                                            <div class="order-total-label">Total Amount</div>
+                                            <div class="order-total-value">₱${parseFloat(order.total_amount).toFixed(2)}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -322,12 +514,15 @@
                             showDenyButton: true,
                             confirmButtonText: 'Close',
                             denyButtonText: 'Delete Order',
-                            confirmButtonColor: '#634832',
+                            confirmButtonColor: '#D4AF37',
                             denyButtonColor: '#dc3545',
                             customClass: {
-                                popup: 'order-details-modal',
-                                title: 'modal-title',
-                                htmlContainer: 'modal-content'
+                                popup: 'swal-modern-product-popup',
+                                title: 'product-modal-title',
+                                htmlContainer: 'product-modal-content',
+                                confirmButton: 'swal-modern-product-confirm',
+                                denyButton: 'swal-modern-product-deny',
+                                closeButton: 'swal-modern-product-close'
                             }
                         }).then((result) => {
                             if (result.isDenied) {
@@ -338,7 +533,7 @@
                                     icon: 'warning',
                                     showCancelButton: true,
                                     confirmButtonColor: '#dc3545',
-                                    cancelButtonColor: '#6c757d',
+                                    cancelButtonColor: '#2E2E2E',
                                     confirmButtonText: 'Yes, delete it!',
                                     cancelButtonText: 'Cancel'
                                 }).then((deleteResult) => {
@@ -358,7 +553,7 @@
                                                     title: 'Deleted!',
                                                     text: 'The order has been deleted successfully.',
                                                     icon: 'success',
-                                                    confirmButtonColor: '#634832'
+                                                    confirmButtonColor: '#D4AF37'
                                                 }).then(() => {
                                                     // Reload the orders table
                                                     loadOrders();
@@ -368,7 +563,7 @@
                                                     title: 'Error',
                                                     text: data.message || 'Failed to delete the order',
                                                     icon: 'error',
-                                                    confirmButtonColor: '#634832'
+                                                    confirmButtonColor: '#D4AF37'
                                                 });
                                             }
                                         })
@@ -378,7 +573,7 @@
                                                 title: 'Error',
                                                 text: 'An error occurred while deleting the order',
                                                 icon: 'error',
-                                                confirmButtonColor: '#634832'
+                                                confirmButtonColor: '#D4AF37'
                                             });
                                         });
                                     }
@@ -393,7 +588,7 @@
                         title: 'Error',
                         text: 'Failed to load order details',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }
@@ -427,14 +622,14 @@
                             title: 'Success',
                             text: 'Order status updated successfully',
                             icon: 'success',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         });
                     } else {
                         Swal.fire({
                             title: 'Error',
                             text: data.message || 'Failed to update order status',
                             icon: 'error',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         });
                     }
                 })
@@ -444,7 +639,7 @@
                         title: 'Error',
                         text: 'An error occurred while updating the order status',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }

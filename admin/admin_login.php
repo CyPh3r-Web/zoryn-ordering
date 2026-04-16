@@ -1,11 +1,7 @@
 <?php
-session_start();
-
-// Check if already logged in
-if (isset($_SESSION['admin_id'])) {
-    header("Location: dashboard.php");
-    exit();
-}
+// Centralized login is now at /index.php
+header("Location: ../index.php");
+exit();
 
 require_once '../backend/dbconn.php';
 
@@ -116,14 +112,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
     .password-container input {
         width: 100%;
         padding: 12px 40px 12px 15px;
-        border: 1px solid #ddd;
+        border: 1px solid #7c6422;
         border-radius: 5px;
         font-size: 14px;
         transition: border-color 0.3s ease;
+        background: #181818;
+        color: #f5e3a6;
     }
 
     .password-container input:focus {
-        border-color: #6F4E37;
+        border-color: #d4af37;
         outline: none;
     }
 
@@ -135,13 +133,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
         background: none;
         border: none;
         cursor: pointer;
-        color: #666;
+        color: #c99b2a;
         padding: 5px;
         z-index: 2;
     }
 
     .toggle-password:hover {
-        color: #333;
+        color: #f4d26b;
     }
 
     .toggle-password i {
@@ -149,8 +147,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
     }
 
     .countdown-timer {
-        background-color: #f8d7da;
-        color: #721c24;
+        background-color: rgba(212, 175, 55, 0.12);
+        color: #ffe6a1;
+        border: 1px solid rgba(212, 175, 55, 0.45);
         padding: 8px 12px;
         border-radius: 4px;
         margin-bottom: 15px;
@@ -162,9 +161,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
         cursor: not-allowed;
     }
     .error-message {
-        color: #721c24;
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
+        color: #ffe6a1;
+        background-color: rgba(212, 175, 55, 0.12);
+        border: 1px solid rgba(212, 175, 55, 0.45);
         padding: 10px;
         border-radius: 5px;
         margin-bottom: 15px;
@@ -226,10 +225,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
         
         <div class="brand-container">
             <div class="logo-container">
-                <img src="../assets/zoryn/logo.png" alt="Zoryn Logo" class="logo">
+                <img src="../assets/zoryn/zoryn_logo.jpg?v=<?php echo filemtime('../assets/zoryn/zoryn_logo.jpg'); ?>" alt="Zoryn Logo" class="logo">
             </div>
             <h2 class="brand-name">ZORYN</h2>
-            <img src="../assets/zoryn/login_header.png" alt="Coffee Illustration" class="coffee-illustration">
+            <img src="../assets/zoryn/zoryn.jpg?v=<?php echo filemtime('../assets/zoryn/zoryn.jpg'); ?>" alt="Coffee Illustration" class="coffee-illustration">
         </div>
     </div>
     <script>

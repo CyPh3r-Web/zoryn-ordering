@@ -47,6 +47,14 @@ class OrderManager {
         $this->session_id = session_id();
     }
 
+    private static function formatImagePath($path) {
+        if (empty($path)) {
+            return '';
+        }
+        $filename = basename($path);
+        return '../assets/images/products/' . $filename;
+    }
+
     // Add item to current session order
     public function addItem($product_id, $quantity) {
         error_log("Starting addItem, product ID: {$product_id}, quantity: {$quantity}");
@@ -75,7 +83,7 @@ class OrderManager {
         if (!$found) {
             error_log("Product not found in order, fetching details");
             // Get product details
-            $stmt = $this->conn->prepare("SELECT product_id, product_name, price, image_path FROM products WHERE product_id = ?");
+            $stmt = $this->conn->prepare("SELECT product_id, product_name, price, tax_rate, image_path FROM products WHERE product_id = ?");
             $stmt->bind_param("i", $product_id);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -87,7 +95,8 @@ class OrderManager {
                     'product_id' => $product_id,
                     'product_name' => $product['product_name'],
                     'price' => $product['price'],
-                    'image_path' => $product['image_path'] ?? '',
+                    'tax_rate' => $product['tax_rate'],
+                    'image_path' => self::formatImagePath($product['image_path']),
                     'quantity' => $quantity
                 );
             } else {
@@ -106,7 +115,7 @@ class OrderManager {
         if ($order_id) {
             // Get specific order for feedback
             $stmt = $this->conn->prepare("
-                SELECT oi.product_id, p.product_name, p.price, p.image_path, oi.quantity 
+                SELECT oi.product_id, p.product_name, oi.price, p.tax_rate, p.image_path, oi.quantity 
                 FROM order_items oi
                 JOIN products p ON oi.product_id = p.product_id
                 WHERE oi.order_id = ?
@@ -117,6 +126,7 @@ class OrderManager {
             
             $items = array();
             while ($row = $result->fetch_assoc()) {
+                $row['image_path'] = self::formatImagePath($row['image_path']);
                 $items[] = $row;
             }
             
@@ -337,7 +347,7 @@ class OrderManager {
             $product = null;
             if (!$this->findItemInOrder($current_order, $product_id)) {
                 error_log("Product {$product_id} not in order, fetching details");
-                $stmt = $this->conn->prepare("SELECT product_id, product_name, price, image_path FROM products WHERE product_id = ?");
+                $stmt = $this->conn->prepare("SELECT product_id, product_name, price, tax_rate, image_path FROM products WHERE product_id = ?");
                 $stmt->bind_param("i", $product_id);
                 $stmt->execute();
                 $result = $stmt->get_result();
@@ -372,7 +382,8 @@ class OrderManager {
                     'product_id' => $product_id,
                     'product_name' => $product['product_name'],
                     'price' => $product['price'],
-                    'image_path' => $product['image_path'] ?? '',
+                    'tax_rate' => $product['tax_rate'],
+                    'image_path' => self::formatImagePath($product['image_path']),
                     'quantity' => $quantity
                 );
             }
@@ -488,7 +499,7 @@ class OrderManager {
     public function getProducts() {
         try {
             $stmt = $this->conn->prepare("
-                SELECT p.product_id, p.product_name, p.price, p.image_path, p.category_id
+                SELECT p.product_id, p.product_name, p.price, p.tax_rate, p.image_path, p.category_id
                 FROM products p
                 WHERE p.status = 'active'
             ");
@@ -497,11 +508,7 @@ class OrderManager {
             
             $products = array();
             while ($row = $result->fetch_assoc()) {
-                // Ensure the image path is properly formatted
-                if (!empty($row['image_path'])) {
-                    // Just use the filename, removing any existing path
-                    $row['image_path'] = basename($row['image_path']);
-                }
+                $row['image_path'] = self::formatImagePath($row['image_path']);
                 $products[] = $row;
             }
             
@@ -523,7 +530,7 @@ class OrderManager {
             // Get product details for all selected products
             $placeholders = str_repeat('?,', count($product_ids) - 1) . '?';
             $stmt = $this->conn->prepare("
-                SELECT product_id, product_name, price, image_path 
+                SELECT product_id, product_name, price, tax_rate, image_path 
                 FROM products 
                 WHERE product_id IN ($placeholders) AND status = 'active'
             ");
@@ -547,7 +554,8 @@ class OrderManager {
                         'product_id' => $product['product_id'],
                         'product_name' => $product['product_name'],
                         'price' => $product['price'],
-                        'image_path' => basename($product['image_path']),
+                        'tax_rate' => $product['tax_rate'],
+                        'image_path' => self::formatImagePath($product['image_path']),
                         'quantity' => 1
                     );
                 }
@@ -700,7 +708,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($order) {
                     // Get order items
                     $stmt = $GLOBALS['conn']->prepare("
-                        SELECT oi.*, p.product_name
+                        SELECT oi.*, p.product_name, p.tax_rate
                         FROM order_items oi
                         JOIN products p ON oi.product_id = p.product_id
                         WHERE oi.order_id = ?

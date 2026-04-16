@@ -17,6 +17,7 @@ if (!isset($_SESSION['user_id'])) {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../admin/css/dashboard.css">
     <link rel="stylesheet" href="../admin/css/orders.css">
+    <link rel="stylesheet" href="../assets/css/zoryn-theme.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <!-- SweetAlert2 CSS and JS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.7.12/sweetalert2.min.css">
@@ -24,191 +25,29 @@ if (!isset($_SESSION['user_id'])) {
     <!-- Active Page Detection -->
     <script src="js/active-page.js"></script>
     <style>
-        .status-buttons {
-            display: inline-flex;
-            gap: 5px;
-            margin-left: 10px;
-        }
-        
-        .status-btn {
-            padding: 5px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-left: 10px;
-            font-size: 14px;
-        }
-        
-        .status-btn.preparing {
-            background-color: #17a2b8;
-            color: #fff;
-        }
-        
-        .status-btn.completed {
-            background-color: #28a745;
-            color: #fff;
-        }
-        
-        .status-badge {
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 14px;
-            margin-left: 10px;
-        }
-        
-        .status-badge.completed {
-            background-color: #28a745;
-            color: #fff;
-        }
-        
-        .status-btn:hover {
-            opacity: 0.9;
-        }
-        
-        .action-buttons {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .action-btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
-        .action-btn.view {
-            background-color: #e9ecef;
-            color: #495057;
-        }
-        
-        .action-btn.view:hover {
-            background-color: #dee2e6;
-        }
-        
-        .status-btn {
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            border: none;
-            color: white;
-        }
-        
-        .status-btn.preparing {
-            background-color: #0d6efd;
-        }
-        
-        .status-btn.completed {
-            background-color: #198754;
-        }
-        
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: white;
-        }
-        
-        .status-badge.completed {
-            background-color: #198754;
-        }
-        
-        .status-badge i {
-            font-size: 16px;
-        }
+        .status-buttons { display: inline-flex; gap: 5px; margin-left: 10px; }
+        .status-btn { padding: 6px 14px; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; font-family: 'Poppins', sans-serif; }
+        .status-btn.preparing { background: rgba(116,185,255,0.2); color: #74B9FF; }
+        .status-btn.preparing:hover { background: rgba(116,185,255,0.3); }
+        .status-btn.completed { background: rgba(0,184,148,0.2); color: #00B894; }
+        .status-btn.completed:hover { background: rgba(0,184,148,0.3); }
+        .status-badge { padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .status-badge.completed { background: rgba(0,184,148,0.15); color: #00B894; }
+        .status-badge i { font-size: 10px; }
+        .action-buttons { display: flex; align-items: center; gap: 8px; }
 
-        .payment-section {
-            margin-top: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .payment-info {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .proof-of-payment {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .proof-of-payment h4 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .proof-image {
-            max-width: 300px;
-            margin: 0 auto;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-
-        .proof-image:hover {
-            transform: scale(1.02);
-        }
-
-        .proof-image img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .verify-btn {
-            margin-top: 15px;
-            padding: 10px 20px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .verify-btn:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-
-        .verify-btn i {
-            font-size: 16px;
-        }
-
-        .text-success {
-            color: #28a745 !important;
-        }
-
-        .text-warning {
-            color: #ffc107 !important;
-        }
+        .payment-section { margin-top: 20px; padding: 20px; background: #1F1F1F; border: 1px solid #2E2E2E; border-radius: 12px; }
+        .payment-info { display: flex; gap: 20px; margin-bottom: 20px; }
+        .proof-of-payment { margin-top: 20px; text-align: center; }
+        .proof-of-payment h4 { margin-bottom: 15px; color: #D4AF37; }
+        .proof-image { max-width: 300px; margin: 0 auto; border: 1px solid #2E2E2E; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.3s ease; }
+        .proof-image:hover { transform: scale(1.02); }
+        .proof-image img { width: 100%; height: auto; display: block; }
+        .verify-btn { margin-top: 15px; padding: 10px 20px; background: linear-gradient(135deg, #F4D26B, #C99B2A); color: #0D0D0D; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; }
+        .verify-btn:hover { background: linear-gradient(135deg, #FFDF7D, #D3A533); transform: translateY(-2px); }
+        .verify-btn i { font-size: 16px; }
+        .text-success { color: #00B894 !important; }
+        .text-warning { color: #FDCB6E !important; }
 
         .payment-proof-modal {
             max-width: 90vw !important;
@@ -221,70 +60,17 @@ if (!isset($_SESSION['user_id'])) {
             object-fit: contain;
         }
 
-        .payment-status {
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: white;
-        }
-
-        .payment-status.pending {
-            background-color: #ffc107;
-            color: #000;
-        }
-
-        .payment-status.verified {
-            background-color: #28a745;
-        }
-
-        .payment-status.unpaid {
-            background-color: #dc3545;
-        }
-
-        .payment-status i {
-            font-size: 14px;
-        }
-
-        .filter-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .filter-select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: white;
-            font-size: 14px;
-            min-width: 150px;
-        }
-
-        .mark-paid-btn {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            margin-top: 10px;
-        }
-
-        .mark-paid-btn:hover {
-            background-color: #218838;
-        }
-
-        .mark-paid-btn i {
-            font-size: 14px;
-        }
+        .payment-status { padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .payment-status.pending { background: rgba(253,203,110,0.15); color: #FDCB6E; }
+        .payment-status.verified { background: rgba(0,184,148,0.15); color: #00B894; }
+        .payment-status.unpaid { background: rgba(220,53,69,0.15); color: #dc3545; }
+        .payment-status i { font-size: 10px; }
+        .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .filter-select { padding: 8px 14px; border: 1px solid #2E2E2E; border-radius: 10px; background: #1F1F1F; color: #B0B0B0; font-size: 13px; min-width: 150px; font-family: 'Poppins', sans-serif; outline: none; transition: border-color 0.3s; }
+        .filter-select:focus { border-color: #D4AF37; }
+        .mark-paid-btn { background: linear-gradient(135deg, #F4D26B, #C99B2A); color: #0D0D0D; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-top: 10px; font-family: 'Poppins', sans-serif; transition: all 0.2s; }
+        .mark-paid-btn:hover { background: linear-gradient(135deg, #FFDF7D, #D3A533); transform: translateY(-1px); }
+        .mark-paid-btn i { font-size: 12px; }
     </style>
 </head>
 <body>
@@ -348,8 +134,8 @@ if (!isset($_SESSION['user_id'])) {
             text: 'Are you sure you want to verify this payment?',
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#6c757d',
+            confirmButtonColor: '#D4AF37',
+            cancelButtonColor: '#2E2E2E',
             confirmButtonText: 'Yes, verify it!'
         }).then((result) => {
             if (result.isConfirmed) {
@@ -368,7 +154,7 @@ if (!isset($_SESSION['user_id'])) {
                             title: 'Verified!',
                             text: data.message,
                             icon: 'success',
-                            confirmButtonColor: '#28a745',
+                            confirmButtonColor: '#D4AF37',
                             allowOutsideClick: false,
                             allowEscapeKey: false
                         }).then(() => {
@@ -382,7 +168,7 @@ if (!isset($_SESSION['user_id'])) {
                             title: 'Error',
                             text: data.message || 'Failed to verify payment',
                             icon: 'error',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         });
                     }
                 })
@@ -392,7 +178,7 @@ if (!isset($_SESSION['user_id'])) {
                         title: 'Error',
                         text: 'An error occurred while verifying payment',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }
@@ -420,8 +206,8 @@ if (!isset($_SESSION['user_id'])) {
             text: 'Are you sure you want to mark this order as paid?',
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#6c757d',
+            confirmButtonColor: '#D4AF37',
+            cancelButtonColor: '#2E2E2E',
             confirmButtonText: 'Yes, mark as paid!'
         }).then((result) => {
             if (result.isConfirmed) {
@@ -454,7 +240,7 @@ if (!isset($_SESSION['user_id'])) {
                             title: 'Success!',
                             text: 'Order has been marked as paid',
                             icon: 'success',
-                            confirmButtonColor: '#28a745'
+                            confirmButtonColor: '#D4AF37'
                         }).then(() => {
                             loadOrders();
                         });
@@ -463,7 +249,7 @@ if (!isset($_SESSION['user_id'])) {
                             title: 'Error',
                             text: data.message || 'Failed to mark order as paid',
                             icon: 'error',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         });
                     }
                 })
@@ -473,7 +259,7 @@ if (!isset($_SESSION['user_id'])) {
                         title: 'Error',
                         text: 'An error occurred while marking the order as paid',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }
@@ -759,7 +545,7 @@ if (!isset($_SESSION['user_id'])) {
                         showDenyButton: true,
                         confirmButtonText: 'Close',
                         denyButtonText: 'Delete Order',
-                        confirmButtonColor: '#634832',
+                        confirmButtonColor: '#D4AF37',
                         denyButtonColor: '#dc3545',
                         customClass: {
                             popup: 'order-details-modal',
@@ -775,7 +561,7 @@ if (!isset($_SESSION['user_id'])) {
                                 icon: 'warning',
                                 showCancelButton: true,
                                 confirmButtonColor: '#dc3545',
-                                cancelButtonColor: '#6c757d',
+                                cancelButtonColor: '#2E2E2E',
                                 confirmButtonText: 'Yes, delete it!',
                                 cancelButtonText: 'Cancel'
                             }).then((deleteResult) => {
@@ -795,7 +581,7 @@ if (!isset($_SESSION['user_id'])) {
                                                 title: 'Deleted!',
                                                 text: 'The order has been deleted successfully.',
                                                 icon: 'success',
-                                                confirmButtonColor: '#634832'
+                                                confirmButtonColor: '#D4AF37'
                                             }).then(() => {
                                                 // Reload the orders table
                                                 loadOrders();
@@ -805,7 +591,7 @@ if (!isset($_SESSION['user_id'])) {
                                                 title: 'Error',
                                                 text: data.message || 'Failed to delete the order',
                                                 icon: 'error',
-                                                confirmButtonColor: '#634832'
+                                                confirmButtonColor: '#D4AF37'
                                             });
                                         }
                                     })
@@ -815,7 +601,7 @@ if (!isset($_SESSION['user_id'])) {
                                             title: 'Error',
                                             text: 'An error occurred while deleting the order',
                                             icon: 'error',
-                                            confirmButtonColor: '#634832'
+                                            confirmButtonColor: '#D4AF37'
                                         });
                                     });
                                 }
@@ -830,7 +616,7 @@ if (!isset($_SESSION['user_id'])) {
                     title: 'Error',
                     text: 'Failed to load order details',
                     icon: 'error',
-                    confirmButtonColor: '#634832'
+                    confirmButtonColor: '#D4AF37'
                 });
             });
         }
@@ -864,14 +650,14 @@ if (!isset($_SESSION['user_id'])) {
                         title: 'Success',
                         text: 'Order status updated successfully',
                         icon: 'success',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 } else {
                     Swal.fire({
                         title: 'Error',
                         text: data.message || 'Failed to update order status',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 }
             })
@@ -881,7 +667,7 @@ if (!isset($_SESSION['user_id'])) {
                     title: 'Error',
                     text: 'An error occurred while updating the order status',
                     icon: 'error',
-                    confirmButtonColor: '#634832'
+                    confirmButtonColor: '#D4AF37'
                 });
             });
         }

@@ -20,65 +20,16 @@ if (session_status() === PHP_SESSION_NONE) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.7.12/sweetalert2.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.7.12/sweetalert2.all.min.js"></script>
     <style>
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: white;
-        }
-        
-        .status-badge.pending {
-            background-color: #ffc107;
-        }
-        
-        .status-badge.preparing {
-            background-color: #0d6efd;
-        }
-        
-        .status-badge.completed {
-            background-color: #198754;
-        }
-        
-        .status-badge i {
-            font-size: 16px;
-        }
-        
-        .action-btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            background-color: #e9ecef;
-            color: #495057;
-        }
-        
-        .action-btn:hover {
-            background-color: #dee2e6;
-        }
-        
-        .action-btn.feedback {
-            background-color: #634832;
-            color: white;
-        }
-        
-        .action-btn.feedback:hover {
-            background-color: #4a3525;
-        }
-        
-        .action-btn.feedback.disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
+        .status-badge { padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+        .status-badge.pending { background: rgba(253,203,110,0.15); color: #FDCB6E; }
+        .status-badge.preparing { background: rgba(116,185,255,0.15); color: #74B9FF; }
+        .status-badge.completed { background: rgba(0,184,148,0.15); color: #00B894; }
+        .status-badge i { font-size: 10px; }
+        .action-btn { padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; font-family: 'Poppins', sans-serif; background: rgba(212,175,55,0.15); color: #D4AF37; }
+        .action-btn:hover { background: rgba(212,175,55,0.25); }
+        .action-btn.feedback { background: linear-gradient(135deg, #F4D26B, #C99B2A); color: #0D0D0D; font-weight: 600; }
+        .action-btn.feedback:hover { background: linear-gradient(135deg, #FFDF7D, #D3A533); }
+        .action-btn.feedback.disabled { background: #2E2E2E; color: #666; cursor: not-allowed; }
         
         .order-details-modal {
             max-width: 900px;
@@ -458,7 +409,7 @@ if (session_status() === PHP_SESSION_NONE) {
                         title: 'Error',
                         text: 'Failed to load orders',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }
@@ -544,7 +495,7 @@ if (session_status() === PHP_SESSION_NONE) {
                             showCloseButton: true,
                             showConfirmButton: true,
                             confirmButtonText: 'Close',
-                            confirmButtonColor: '#634832',
+                            confirmButtonColor: '#D4AF37',
                             customClass: {
                                 popup: 'order-details-modal',
                                 title: 'modal-title',
@@ -559,7 +510,7 @@ if (session_status() === PHP_SESSION_NONE) {
                         title: 'Error',
                         text: 'Failed to load order details',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }
@@ -609,8 +560,8 @@ if (session_status() === PHP_SESSION_NONE) {
                             showCancelButton: true,
                             confirmButtonText: 'Submit Feedback',
                             cancelButtonText: 'Cancel',
-                            confirmButtonColor: '#634832',
-                            cancelButtonColor: '#6c757d',
+                            confirmButtonColor: '#D4AF37',
+                            cancelButtonColor: '#2E2E2E',
                             showCloseButton: true,
                             customClass: {
                                 popup: 'feedback-modal',
@@ -670,7 +621,7 @@ if (session_status() === PHP_SESSION_NONE) {
                                             title: 'Thank You!',
                                             text: 'Your feedback has been submitted successfully.',
                                             icon: 'success',
-                                            confirmButtonColor: '#634832'
+                                            confirmButtonColor: '#D4AF37'
                                         }).then(() => {
                                             // Reload orders to update feedback status
                                             loadOrders();
@@ -680,7 +631,7 @@ if (session_status() === PHP_SESSION_NONE) {
                                             title: 'Error',
                                             text: data.message || 'Failed to submit feedback',
                                             icon: 'error',
-                                            confirmButtonColor: '#634832'
+                                            confirmButtonColor: '#D4AF37'
                                         });
                                     }
                                 })
@@ -690,7 +641,7 @@ if (session_status() === PHP_SESSION_NONE) {
                                         title: 'Error',
                                         text: 'An error occurred while submitting feedback',
                                         icon: 'error',
-                                        confirmButtonColor: '#634832'
+                                        confirmButtonColor: '#D4AF37'
                                     });
                                 });
                             }
@@ -706,7 +657,7 @@ if (session_status() === PHP_SESSION_NONE) {
                         title: 'Error',
                         text: 'Failed to load order details',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }

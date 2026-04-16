@@ -4,7 +4,9 @@ session_start();
 <nav class="navbar">
     <div class="nav-container">
         <div class="nav-brand">
-            <a href="index.php">Zoryn</a>
+            <a href="index.php" aria-label="Zoryn Home">
+                <img src="../assets/zoryn/zoryn.jpg" alt="Zoryn Logo">
+            </a>
         </div>
         <div class="nav-links">
             <a href="index.php">Home</a>
@@ -30,7 +32,10 @@ session_start();
 </nav>
 
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
     .navbar {
+        font-family: 'Poppins', sans-serif;
         background-color: #fff;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         padding: 1rem 0;
@@ -46,10 +51,17 @@ session_start();
     }
 
     .nav-brand a {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #333;
+        display: inline-flex;
+        align-items: center;
         text-decoration: none;
+    }
+
+    .nav-brand img {
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
     }
 
     .nav-links {

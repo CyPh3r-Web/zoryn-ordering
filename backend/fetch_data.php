@@ -78,11 +78,12 @@ function fetchIngredients() {
 function fetchProducts() {
     global $conn;
     try {
-        $sql = "SELECT 
+        $sql = "SELECT
                     p.product_id,
                     p.product_name,
                     p.category_id,
                     p.price,
+                    p.tax_rate,
                     p.description,
                     p.image_path,
                     p.status,

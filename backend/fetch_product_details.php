@@ -13,6 +13,7 @@ if (isset($_GET['product_id'])) {
                     p.product_name,
                     p.category_id,
                     p.price,
+                    p.tax_rate,
                     p.description,
                     p.image_path,
                     p.status,

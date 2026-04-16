@@ -12,6 +12,7 @@ require_once '../backend/dbconn.php';
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/inventory.css">
+    <link rel="stylesheet" href="../assets/css/zoryn-theme.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <!-- SweetAlert2 CSS and JS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.7.12/sweetalert2.min.css">
@@ -118,57 +119,7 @@ require_once '../backend/dbconn.php';
     </div>
 
     <style>
-    /* Add these styles to your existing CSS */
-    .inventory-tabs {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    .tab-btn {
-        padding: 0.5rem 1rem;
-        border: none;
-        background: #f5f5f5;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-
-    .tab-btn.active {
-        background: #634832;
-        color: white;
-    }
-
-    .tab-content {
-        display: none;
-    }
-
-    .tab-content.active {
-        display: block;
-    }
-
-    .usage-status {
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    .usage-status.critical {
-        background: #fee2e2;
-        color: #dc2626;
-    }
-
-    .usage-status.warning {
-        background: #fef3c7;
-        color: #d97706;
-    }
-
-    .usage-status.good {
-        background: #dcfce7;
-        color: #16a34a;
-    }
+    /* Inline page-specific overrides - base styles in inventory.css */
     </style>
 
     <script>
@@ -207,7 +158,7 @@ require_once '../backend/dbconn.php';
                             title: 'Error',
                             text: 'Failed to load ingredients: Invalid data format',
                             icon: 'error',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         });
                     }
                 })
@@ -217,7 +168,7 @@ require_once '../backend/dbconn.php';
                         title: 'Error',
                         text: 'Failed to load ingredients',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }
@@ -383,7 +334,7 @@ require_once '../backend/dbconn.php';
                 if (!stockUpdateModal) return;
                 document.getElementById('ingredientId').value = ingredientId;
                 document.getElementById('currentStock').value = currentStock;
-                stockUpdateModal.style.display = 'block';
+                stockUpdateModal.style.display = 'flex';
             }
 
             // Close modal
@@ -421,7 +372,7 @@ require_once '../backend/dbconn.php';
                             title: 'Success',
                             text: data.message || 'Stock updated successfully',
                             icon: 'success',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         }).then(() => {
                             stockUpdateModal.style.display = 'none';
                             loadIngredients();
@@ -431,7 +382,7 @@ require_once '../backend/dbconn.php';
                             title: 'Error',
                             text: data.error || 'Failed to update stock',
                             icon: 'error',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         });
                     }
                 })
@@ -441,7 +392,7 @@ require_once '../backend/dbconn.php';
                         title: 'Error',
                         text: 'Failed to update stock',
                         icon: 'error',
-                        confirmButtonColor: '#634832'
+                        confirmButtonColor: '#D4AF37'
                     });
                 });
             }
@@ -487,7 +438,7 @@ require_once '../backend/dbconn.php';
                                 title: 'Error',
                                 text: 'Failed to load usage data',
                                 icon: 'error',
-                                confirmButtonColor: '#634832'
+                                confirmButtonColor: '#D4AF37'
                             });
                         }
                     })
@@ -497,7 +448,7 @@ require_once '../backend/dbconn.php';
                             title: 'Error',
                             text: 'Failed to load usage data',
                             icon: 'error',
-                            confirmButtonColor: '#634832'
+                            confirmButtonColor: '#D4AF37'
                         });
                     });
             }

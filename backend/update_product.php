@@ -3,13 +3,34 @@ require_once 'dbconn.php';
 
 header('Content-Type: application/json');
 
+function normalizeProductPrice($rawPrice) {
+    $price = trim((string) $rawPrice);
+    $price = str_replace([',', 'PHP', 'php', '₱', ' '], '', $price);
+
+    if ($price === '' || !is_numeric($price)) {
+        throw new Exception('Invalid product price');
+    }
+
+    $normalized = number_format((float) $price, 2, '.', '');
+
+    if ((float) $normalized < 0) {
+        throw new Exception('Product price cannot be negative');
+    }
+
+    return $normalized;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // Get form data
         $productId = $_POST['productId'];
         $productName = $_POST['productName'];
         $categoryId = $_POST['productCategory'];
-        $price = $_POST['productPrice'];
+        $price = normalizeProductPrice($_POST['productPrice'] ?? '');
+        $taxRate = isset($_POST['productTaxRate']) ? floatval($_POST['productTaxRate']) : 12.00;
+        if ($taxRate < 0 || $taxRate > 100) {
+            throw new Exception('Tax rate must be between 0 and 100');
+        }
         $description = $_POST['productDescription'];
         $status = $_POST['productStatus'];
         $ingredients = json_decode($_POST['ingredients'], true);
@@ -22,11 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 SET product_name = ?, 
                     category_id = ?, 
                     price = ?, 
+                    tax_rate = ?,
                     description = ?, 
                     status = ? 
                 WHERE product_id = ?";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sidssi", $productName, $categoryId, $price, $description, $status, $productId);
+        $stmt->bind_param("sisdssi", $productName, $categoryId, $price, $taxRate, $description, $status, $productId);
         $stmt->execute();
 
         // Handle image upload if provided

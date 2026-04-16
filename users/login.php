@@ -1,11 +1,7 @@
 <?php
-session_start();
-
-// Check if user is already logged in
-if (isset($_SESSION['user_id'])) {
-    header("Location: home.php");
-    exit();
-}
+// Centralized login is now at /index.php
+header("Location: ../index.php");
+exit();
 
 $error = '';
 $login_attempts = 0;
@@ -148,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="css/app.css">
     <style>
         .countdown-timer {
             background-color: #f8d7da;
@@ -220,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
         }
     </style>
 </head>
-<body>
+<body class="auth-page auth-login">
     <div class="login-container">
         <div class="login-form">
             <h1>Welcome back</h1>
@@ -274,11 +270,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
         </div>
         
         <div class="brand-container">
-            <div class="logo-container">
-                <img src="../assets/zoryn/logo.png" alt="Zoryn Logo" class="logo">
-            </div>
-            <h2 class="brand-name">ZORYN</h2>
-            <img src="../assets/zoryn/login_header.png" alt="Coffee Illustration" class="coffee-illustration">
+        <img src="../assets/zoryn/zoryn.jpg?v=<?php echo filemtime('../assets/zoryn/zoryn.jpg'); ?>" alt="Coffee Illustration" class="coffee-illustration">
+            <h2 class="brand-name"> ZORYN </h2>
         </div>
     </div>
 

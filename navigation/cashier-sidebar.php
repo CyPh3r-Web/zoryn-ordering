@@ -3,188 +3,71 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Get the current page filename
 $current_page = basename($_SERVER['PHP_SELF']);
-
-// Function to check if a menu item is active
-function isActive($page) {
+function isActiveCashier($page) {
     global $current_page;
     return ($current_page === $page) ? 'active' : '';
 }
 
-// Only show sidebar if user is a cashier
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier'):
 ?>
 
-<div id="sidebar" class="sidebar">
-    <div class="sidebar-header">
-        <h3>Cashier Menu</h3>
+<div id="sidebar" class="fixed top-0 left-0 h-screen w-[260px] bg-[#121212]/95 backdrop-blur-xl border-r border-[#2E2E2E]/50 pt-20 z-[80] transition-all duration-300 flex flex-col" style="font-family: 'Poppins', sans-serif;">
+    <div class="absolute top-0 left-0 w-[3px] h-full bg-gradient-to-b from-[#D4AF37] via-[#F5D76E] to-[#B8921E] opacity-40"></div>
+    <div class="px-5 py-4 border-b border-[#2E2E2E]/50">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-[#D4AF37]/20 to-[#D4AF37]/5 flex items-center justify-center border border-[#D4AF37]/20">
+                <i class="fas fa-cash-register text-sm text-[#D4AF37]"></i>
+            </div>
+            <div><h3 class="text-sm font-bold text-[#D4AF37] tracking-wider">CASHIER</h3><p class="text-[10px] text-[#666]">Point of Sale</p></div>
+        </div>
     </div>
-    <div class="sidebar-content">
-        <ul class="sidebar-menu">
-            <li class="<?php echo isActive('order-details.php'); ?>">
-                <a href="order-details.php">
-                    <i class="fas fa-plus-circle"></i>
-                    <span>New Orders</span>
+
+    <!-- Menu -->
+    <div class="flex-1 overflow-y-auto py-4 px-3 scrollbar-thin">
+        <ul class="space-y-1">
+            <li class="cashier-item <?= isActiveCashier('order-details.php') ?>">
+                <a href="order-details.php" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-[#B0B0B0] hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all duration-200 group">
+                    <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#D4AF37]/5 group-hover:bg-[#D4AF37]/15 transition-all duration-200">
+                        <i class="fas fa-plus-circle text-xs text-[#D4AF37]/60 group-hover:text-[#D4AF37] transition-colors"></i>
+                    </div>
+                    <span class="font-medium">New Order</span>
                 </a>
             </li>
-            <li class="<?php echo isActive('orders.php'); ?>">
-                <a href="orders.php">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span>Orders</span>
+            <li class="cashier-item <?= isActiveCashier('orders.php') ?>">
+                <a href="orders.php" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-[#B0B0B0] hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all duration-200 group">
+                    <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#D4AF37]/5 group-hover:bg-[#D4AF37]/15 transition-all duration-200">
+                        <i class="fas fa-shopping-cart text-xs text-[#D4AF37]/60 group-hover:text-[#D4AF37] transition-colors"></i>
+                    </div>
+                    <span class="font-medium">Orders</span>
                 </a>
             </li>
         </ul>
     </div>
+
+    <!-- Footer -->
+    <div class="px-3 py-4 border-t border-[#2E2E2E]/50">
+        <a href="#" id="cashierLogoutLink" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/8 transition-all duration-200 group">
+            <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/5 group-hover:bg-red-500/15 transition-all duration-200">
+                <i class="fas fa-sign-out-alt text-xs"></i>
+            </div>
+            <span class="font-medium">Logout</span>
+        </a>
+    </div>
 </div>
 
 <style>
-/* Base sidebar styles */
-.sidebar {
-    width: 250px;
-    height: 100vh;
-    background-color: #fff;
-    position: fixed;
-    left: 0;
-    top: 0;
-    padding-top: 80px; /* Account for navbar height */
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease-in-out;
-    z-index: 999;
-    overflow-x: hidden; /* Prevent content from showing outside */
-}
-
-/* Collapsed state */
-.sidebar.collapsed {
-    transform: translateX(-250px);
-}
-
-.sidebar-header {
-    padding: 20px;
-    border-bottom: 1px solid #eee;
-}
-
-.sidebar-header h3 {
-    margin: 0;
-    color: #3c2415;
-    font-size: 1.2rem;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.sidebar-content {
-    padding: 20px 0;
-}
-
-.sidebar-menu {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.sidebar-menu li {
-    margin-bottom: 5px;
-}
-
-.sidebar-menu li a {
-    display: flex;
-    align-items: center;
-    padding: 12px 20px;
-    color: #666;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    gap: 15px; /* Add consistent spacing between icon and text */
-}
-
-.sidebar-menu li a:hover {
-    background-color: #f8f9fa;
-    color: #3c2415;
-}
-
-.sidebar-menu li.active a {
-    background-color: #f0f0f0;
-    color: #3c2415;
-    border-left: 4px solid #3c2415;
-}
-
-.sidebar-menu li a i {
-    width: 20px;
-    font-size: 1.1rem;
-    color: #3c2415;
-    text-align: center; /* Center the icon */
-}
-
-.sidebar-menu li a span {
-    white-space: nowrap;
-    overflow: hidden;
-    font-size: 0.95rem;
-    line-height: 1.2; /* Improve text line height */
-}
-
-/* Main content adjustment */
-.main-content {
-    margin-left: 250px;
-    padding: 20px;
-    transition: all 0.3s ease-in-out;
-    width: calc(100% - 250px);
-}
-
-.main-content.expanded {
-    margin-left: 0;
-    width: 100%;
-}
-
-/* Toggle button styles */
-.sidebar-toggle-btn {
-    position: fixed;
-    left: 250px;
-    top: 80px;
-    background-color: #fff;
-    border: none;
-    border-radius: 0 4px 4px 0;
-    padding: 10px;
-    cursor: pointer;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    transition: all 0.3s ease-in-out;
-}
-
-.sidebar-toggle-btn.active {
-    left: 0;
-}
-
-.sidebar-toggle-btn.active i {
-    transform: rotate(180deg);
-}
-
-/* Responsive design for smaller screens */
+#sidebar.collapsed { transform: translateX(-260px); }
+.cashier-item.active > a { background: rgba(212,175,55,0.1) !important; color: #D4AF37 !important; }
+.cashier-item.active > a > div:first-child { background: rgba(212,175,55,0.2) !important; }
+.cashier-item.active > a > div:first-child i { color: #D4AF37 !important; }
+.cashier-item.active > a::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 60%; background: #D4AF37; border-radius: 0 4px 4px 0; }
+.main-content { margin-left: 260px; transition: all 0.3s ease; }
+.main-content.expanded { margin-left: 0; }
 @media (max-width: 768px) {
-    .sidebar {
-        width: 250px;
-        transform: translateX(-100%);
-        padding-top: 60px;
-    }
-    
-    .sidebar.collapsed {
-        transform: translateX(-250px);
-    }
-    
-    .sidebar-toggle-btn {
-        left: auto;
-        right: 10px;
-        top: 10px;
-    }
-    
-    .sidebar-toggle-btn.active {
-        left: auto;
-        right: 10px;
-    }
-    
-    .main-content {
-        margin-left: 0;
-        width: 100%;
-        padding: 15px;
-    }
+    #sidebar { transform: translateX(-100%); }
+    #sidebar.collapsed { transform: translateX(0); }
+    .main-content { margin-left: 0; }
 }
 </style>
 
@@ -193,37 +76,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
     const mainContent = document.querySelector('.main-content');
-    
-    // Check localStorage for sidebar state
     const isSidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-    
-    // Initialize sidebar state
+
     if (isSidebarCollapsed) {
         sidebar.classList.add('collapsed');
         if (mainContent) mainContent.classList.add('expanded');
-        if (sidebarToggle) sidebarToggle.classList.add('active');
     }
-    
-    // Toggle sidebar when clicking the button
+
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', function() {
             sidebar.classList.toggle('collapsed');
             if (mainContent) mainContent.classList.toggle('expanded');
-            sidebarToggle.classList.toggle('active');
-            
-            // Store sidebar state in localStorage
             localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
         });
     }
-    
-    // Close sidebar automatically on smaller screens when clicking menu items
-    const menuLinks = document.querySelectorAll('.sidebar-menu a');
-    menuLinks.forEach(link => {
+
+    document.querySelectorAll('.sidebar-menu a').forEach(link => {
         link.addEventListener('click', function() {
             if (window.innerWidth <= 768) {
                 sidebar.classList.add('collapsed');
                 if (mainContent) mainContent.classList.add('expanded');
-                if (sidebarToggle) sidebarToggle.classList.add('active');
                 localStorage.setItem('sidebarCollapsed', 'true');
             }
         });

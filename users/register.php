@@ -1,7 +1,6 @@
 <?php
 session_start();
 
-// Check if user is already logged in
 if (isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
@@ -11,64 +10,50 @@ $error = '';
 $success = '';
 $verification_sent = false;
 
-// First, we need to add PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-// Function to generate random verification code
 function generateVerificationCode() {
-    return rand(1000, 9999); // 4-digit code
+    return rand(1000, 9999);
 }
 
-// Function to send verification email
 function sendVerificationEmail($email, $full_name, $verification_code) {
-    // Load Composer's autoloader
     require '../vendor/autoload.php';
-
-    // Instantiate PHPMailer
     $mail = new PHPMailer(true);
-
     try {
-        // Server settings
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com'; 
+        $mail->Host       = 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'zoryn@gmail.com'; 
-        $mail->Password   = 'gvlg skgp lcwk zdzf'; 
+        $mail->Username   = 'zoryn@gmail.com';
+        $mail->Password   = 'gvlg skgp lcwk zdzf';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
-
-        // Recipients
         $mail->setFrom('zoryn@gmail.com', 'Zoryn');
         $mail->addAddress($email, $full_name);
-
-        // Content
         $mail->isHTML(true);
         $mail->Subject = 'Zoryn - Email Verification Code';
-        $mail->Body    = "
-            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-                <div style='background-color: #6F4E37; color: white; padding: 20px; text-align: center;'>
-                    <h1>Zoryn</h1>
+        $mail->Body = "
+            <div style='font-family: Poppins, Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <div style='background: linear-gradient(135deg, #D4AF37, #B8921E); color: #0D0D0D; padding: 30px; text-align: center; border-radius: 12px 12px 0 0;'>
+                    <h1 style='margin:0; font-size: 28px; letter-spacing: 3px;'>ZORYN</h1>
                 </div>
-                <div style='padding: 20px; border: 1px solid #e0e0e0; border-top: none;'>
-                    <h2>Email Verification</h2>
+                <div style='padding: 30px; background: #1F1F1F; color: #B0B0B0; border: 1px solid #2E2E2E; border-top: none;'>
+                    <h2 style='color: #D4AF37; margin-bottom: 10px;'>Email Verification</h2>
                     <p>Hello $full_name,</p>
-                    <p>Thank you for registering with Zoryn. To complete your registration, please use the verification code below:</p>
-                    <div style='background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; margin: 20px 0;'>
+                    <p>Thank you for registering with Zoryn. Use the verification code below:</p>
+                    <div style='background: #121212; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; margin: 20px 0; border-radius: 12px; color: #D4AF37; letter-spacing: 8px; border: 1px solid #2E2E2E;'>
                         $verification_code
                     </div>
                     <p>This code will expire in 30 minutes.</p>
-                    <p>If you did not request this verification, please ignore this email.</p>
-                    <p>Best regards,<br>Zoryn Team</p>
+                    <p style='color: #888;'>If you did not request this verification, please ignore this email.</p>
                 </div>
-                <div style='background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #777;'>
+                <div style='background: #121212; padding: 15px; text-align: center; font-size: 12px; color: #888; border-radius: 0 0 12px 12px; border: 1px solid #2E2E2E; border-top: none;'>
                     &copy; " . date('Y') . " Zoryn. All rights reserved.
                 </div>
             </div>
         ";
-        $mail->AltBody = "Hello $full_name,\n\nYour verification code is: $verification_code\n\nThis code will expire in 30 minutes.\n\nIf you did not request this verification, please ignore this email.\n\nBest regards,\nZoryn Team";
-
+        $mail->AltBody = "Hello $full_name,\n\nYour verification code is: $verification_code\n\nThis code will expire in 30 minutes.\n\nBest regards,\nZoryn Team";
         $mail->send();
         return true;
     } catch (Exception $e) {
@@ -77,134 +62,81 @@ function sendVerificationEmail($email, $full_name, $verification_code) {
     }
 }
 
-// Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once '../backend/dbconn.php';
-    
-    // Check if it's the verification form
+
     if (isset($_POST['action']) && $_POST['action'] === 'verify') {
-        // Debug: Log verification attempt
-        error_log("Verification attempt - POST data: " . print_r($_POST, true));
-        
-        // Verify the code
         if (isset($_SESSION['temp_user_data']) && isset($_POST['verification_code'])) {
             $temp_data = $_SESSION['temp_user_data'];
             $entered_code = trim($_POST['verification_code']);
             $user_id = $temp_data['user_id'];
-            
-            // Debug: Log verification data
-            error_log("Verification data - User ID: " . $user_id);
-            error_log("Entered code: " . $entered_code);
-            
-            // Get the stored verification code from database
+
             $stmt = $conn->prepare("SELECT verification_code, verification_expires FROM users WHERE user_id = ?");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
             $result = $stmt->get_result();
-            
+
             if ($result && $result->num_rows > 0) {
                 $user = $result->fetch_assoc();
-                
-                // Debug: Log database verification data
-                error_log("Database verification data: " . print_r($user, true));
-                
                 if ($entered_code == $user['verification_code']) {
-                    // Check if code is expired
                     if (strtotime($user['verification_expires']) < time()) {
                         $error = 'Verification code has expired. Please request a new one.';
                         $verification_sent = true;
                     } else {
-                        // Activate the account
                         $stmt = $conn->prepare("UPDATE users SET account_status = 'active' WHERE user_id = ?");
                         $stmt->bind_param("i", $user_id);
-                        
                         if ($stmt->execute()) {
-                            // Debug: Log successful activation
-                            error_log("Account activated successfully for user ID: " . $user_id);
-                            
-                            // Clear session data
                             unset($_SESSION['temp_user_data']);
-                            $success = 'Account verified and activated successfully! You can now login.';
-                            
-                            // Show success message and redirect to login page
-                            echo '<div class="success-message" style="text-align: center; padding: 20px; background-color: #d4edda; color: #155724; border-radius: 5px; margin: 20px 0;">
-                                    <h3>Verification Successful!</h3>
-                                    <p>Your account has been verified and activated. You will be redirected to the login page in 3 seconds.</p>
-                                    <p>If you are not redirected, <a href="login.php">click here</a> to login.</p>
-                                  </div>';
-                            
-                            // Redirect to login page after 3 seconds
+                            $success = 'Account verified successfully! Redirecting to login...';
                             header("refresh:3;url=login.php");
                             exit();
                         } else {
-                            $error = 'Account activation failed: ' . $stmt->error;
-                            error_log("Account activation failed: " . $stmt->error);
+                            $error = 'Account activation failed. Please try again.';
                         }
                     }
                 } else {
                     $error = 'Invalid verification code. Please try again.';
                     $verification_sent = true;
-                    error_log("Invalid verification code entered. Expected: " . $user['verification_code'] . ", Got: " . $entered_code);
                 }
             } else {
-                $error = 'User not found in database.';
-                error_log("User not found in database. User ID: " . $user_id);
+                $error = 'User not found. Please register again.';
                 $verification_sent = true;
             }
         } else {
-            $error = 'Session expired or verification code missing. Please register again.';
-            error_log("Session expired during verification or code missing");
+            $error = 'Session expired. Please register again.';
         }
-    } 
-    // Handle resend verification code request
-    elseif (isset($_POST['action']) && $_POST['action'] === 'resend') {
+    } elseif (isset($_POST['action']) && $_POST['action'] === 'resend') {
         if (isset($_SESSION['temp_user_data'])) {
             $temp_data = $_SESSION['temp_user_data'];
             $email = $temp_data['email'];
             $full_name = $temp_data['full_name'];
             $user_id = $temp_data['user_id'];
-            
-            // Generate new verification code
             $verification_code = generateVerificationCode();
             $verification_expires = date('Y-m-d H:i:s', strtotime('+30 minutes'));
-            
-            // Update verification code in database
             $stmt = $conn->prepare("UPDATE users SET verification_code = ?, verification_expires = ? WHERE user_id = ?");
             $stmt->bind_param("ssi", $verification_code, $verification_expires, $user_id);
-            
             if ($stmt->execute()) {
-                // Update session data
                 $temp_data['verification_code'] = $verification_code;
                 $_SESSION['temp_user_data'] = $temp_data;
-                
-                // Send new verification email
                 if (sendVerificationEmail($email, $full_name, $verification_code)) {
                     $success = 'Verification code has been resent to your email.';
-                    error_log("Verification code resent successfully to: " . $email . ", Code: " . $verification_code);
                 } else {
                     $error = 'Failed to send verification email. Please try again.';
-                    error_log("Failed to resend verification email to: " . $email);
                 }
             } else {
                 $error = 'Failed to update verification code. Please try again.';
-                error_log("Failed to update verification code in database: " . $stmt->error);
             }
-            
             $verification_sent = true;
         } else {
             $error = 'Session expired. Please register again.';
-            error_log("Session expired during resend attempt");
         }
-    }
-    // Handle initial registration form
-    else {
+    } else {
         $username = trim($_POST['username'] ?? '');
         $full_name = trim($_POST['full_name'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $confirm_password = $_POST['confirm_password'] ?? '';
-        
-        // Validate input
+
         if (empty($username) || empty($full_name) || empty($email) || empty($password) || empty($confirm_password)) {
             $error = 'Please fill in all fields';
         } elseif ($password !== $confirm_password) {
@@ -212,50 +144,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (strlen($password) < 8) {
             $error = 'Password must be at least 8 characters long';
         } else {
-            // Check if email or username already exists
             $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ? OR username = ?");
             $stmt->bind_param("ss", $email, $username);
             $stmt->execute();
             $result = $stmt->get_result();
-            
             if ($result->num_rows > 0) {
                 $error = 'Email or username already registered';
             } else {
-                // Generate verification code
                 $verification_code = generateVerificationCode();
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $current_time = date('Y-m-d H:i:s');
                 $verification_expires = date('Y-m-d H:i:s', strtotime('+30 minutes'));
                 $role = "user";
                 $account_status = "pending";
-                
-                // Insert user with pending status
                 $stmt = $conn->prepare("INSERT INTO users (username, full_name, email, password, role, created_at, updated_at, verification_code, verification_expires, account_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param("ssssssssss", $username, $full_name, $email, $hashed_password, $role, $current_time, $current_time, $verification_code, $verification_expires, $account_status);
-                
                 if ($stmt->execute()) {
                     $user_id = $stmt->insert_id;
-                    error_log("User registered successfully. ID: " . $user_id . ", Email: " . $email . ", Code: " . $verification_code);
-                    
-                    // Store user data in session for verification
                     $_SESSION['temp_user_data'] = [
                         'user_id' => $user_id,
                         'email' => $email,
                         'full_name' => $full_name,
                         'verification_code' => $verification_code
                     ];
-                    
-                    // Send verification email
                     if (sendVerificationEmail($email, $full_name, $verification_code)) {
                         $verification_sent = true;
-                        $success = 'A verification code has been sent to your email. Please check your inbox.';
+                        $success = 'A verification code has been sent to your email.';
                     } else {
                         $error = 'Failed to send verification email. Please try again.';
-                        error_log("Failed to send verification email to: " . $email);
                     }
                 } else {
                     $error = 'Registration failed: ' . $stmt->error;
-                    error_log("Registration failed: " . $stmt->error);
                 }
             }
         }
@@ -267,244 +186,219 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Zoryn</title>
+    <title>Register – Zoryn</title>
+    <link rel="icon" type="image/jpeg" href="../assets/zoryn/zoryn.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="css/register.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        z: {
+                            black: '#0D0D0D', dark: '#121212', gray: '#1F1F1F',
+                            'gray-light': '#2A2A2A', border: '#2E2E2E',
+                            gold: '#D4AF37', 'gold-light': '#F5D76E',
+                            'gold-muted': '#B8921E', 'gold-pale': '#F4D26B',
+                        }
+                    },
+                    fontFamily: { poppins: ['Poppins', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Add additional styles for verification form */
-        .verification-container {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .verification-code {
-            letter-spacing: 8px;
-            font-size: 24px;
-            padding: 10px;
-            width: 160px;
-            text-align: center;
-            margin: 20px auto;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        .resend-link {
-            display: block;
-            margin-top: 10px;
-            color: #6F4E37;
-            text-decoration: none;
-        }
-        .resend-link:hover {
-            text-decoration: underline;
-        }
-        .timer {
-            font-size: 14px;
-            color: #777;
-            margin-top: 5px;
-        }
-        .error-message {
-            color: #721c24;
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-        }
-        .success-message {
-            color: #155724;
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-        }
-        .password-container {
-            position: relative;
-            width: 100%;
-        }
-
-        .password-container input {
-            width: 100%;
-            padding: 12px 40px 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-            transition: border-color 0.3s ease;
-        }
-
-        .password-container input:focus {
-            border-color: #6F4E37;
-            outline: none;
-        }
-
-        .toggle-password {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #666;
-            padding: 5px;
-            z-index: 2;
-        }
-
-        .toggle-password:hover {
-            color: #333;
-        }
-
-        .toggle-password i {
-            font-size: 16px;
+        body { font-family: 'Poppins', sans-serif; }
+        .brand-gradient { background: linear-gradient(160deg, #F4D26B 0%, #D4AF37 45%, #B8921E 100%); }
+        .gold-btn { background: linear-gradient(135deg, #F4D26B, #C99B2A); }
+        .gold-btn:hover { background: linear-gradient(135deg, #FFDF7D, #D3A533); }
+        input:-webkit-autofill {
+            -webkit-box-shadow: 0 0 0 30px #121212 inset !important;
+            -webkit-text-fill-color: #F5D76E !important;
         }
     </style>
 </head>
-<body>
-    <div class="signup-container">
-        <div class="signup-form">
-            <?php if ($verification_sent): ?>
-                <!-- Verification Form -->
-                <h1>Verify Email</h1>
-                <p class="subtitle">Enter the 4-digit code sent to <?php echo isset($_SESSION['temp_user_data']['email']) ? htmlspecialchars($_SESSION['temp_user_data']['email']) : ''; ?></p>
-                
-                <?php if ($error): ?>
-                    <div class="error-message"><?php echo htmlspecialchars($error); ?></div>
-                <?php endif; ?>
-                <?php if ($success): ?>
-                    <div class="success-message"><?php echo htmlspecialchars($success); ?></div>
-                <?php endif; ?>
-                
-                <form method="POST" action="">
-                    <input type="hidden" name="action" value="verify">
-                    
-                    <div class="verification-container">
-                        <input type="text" class="verification-code" name="verification_code" maxlength="4" pattern="[0-9]{4}" required autofocus>
-                        <div class="timer" id="timer">Resend available in <span id="countdown">60</span> seconds</div>
-                    </div>
-                    
-                    <button type="submit" class="signup-btn">Verify</button>
-                </form>
-                
-                <form method="POST" action="" id="resendForm" style="display: none; text-align: center;">
-                    <input type="hidden" name="action" value="resend">
-                    <button type="submit" class="resend-link" id="resendButton" disabled>Resend Code</button>
-                </form>
-                
-                <div class="login-link">
-                    <p><a href="register.php">Back to Registration</a></p>
-                </div>
-                
-                <script>
-                    // Wait for the DOM to be fully loaded
-                    document.addEventListener('DOMContentLoaded', function() {
-                        // Countdown timer for resend code
-                        let countdown = 60;
-                        const timerElement = document.getElementById('countdown');
-                        const resendButton = document.getElementById('resendButton');
-                        const resendForm = document.getElementById('resendForm');
-                        
-                        if (timerElement && resendButton && resendForm) {
-                            // Display resend form
-                            resendForm.style.display = 'block';
-                            
-                            const timer = setInterval(() => {
-                                countdown--;
-                                timerElement.textContent = countdown;
-                                
-                                if (countdown <= 0) {
-                                    clearInterval(timer);
-                                    if (document.getElementById('timer')) {
-                                        document.getElementById('timer').style.display = 'none';
-                                    }
-                                    resendButton.disabled = false;
-                                }
-                            }, 1000);
-                        }
-                    });
-                </script>
-            <?php else: ?>
-                <!-- Registration Form -->
-                <h1>Create Account</h1>
-                <p class="subtitle">Join Zoryn community today</p>
-                
-                <?php if ($error): ?>
-                    <div class="error-message"><?php echo htmlspecialchars($error); ?></div>
-                <?php endif; ?>
-                <?php if ($success): ?>
-                    <div class="success-message"><?php echo htmlspecialchars($success); ?></div>
-                <?php endif; ?>
-                
-                <form method="POST" action="">
-                    <div class="form-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" name="username" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="full_name">Full Name</label>
-                        <input type="text" id="full_name" name="full_name" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="email">Email address</label>
-                        <input type="email" id="email" name="email" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <div class="password-container">
-                            <input type="password" id="password" name="password" required>
-                            <button type="button" class="toggle-password" onclick="togglePassword('password')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <div class="form-hint">Password must be at least 8 characters long</div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="confirm_password">Confirm Password</label>
-                        <div class="password-container">
-                            <input type="password" id="confirm_password" name="confirm_password" required>
-                            <button type="button" class="toggle-password" onclick="togglePassword('confirm_password')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="signup-btn">Register</button>
-                </form>
-                
-                <div class="login-link">
-                    <p>Already have an account? <a href="login.php">Login here</a></p>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <div class="brand-container">
-            <div class="logo-container">
-                <img src="../assets/zoryn/logo.png" alt="Zoryn Logo" class="logo">
+<body class="bg-gradient-to-b from-[#1a1a1a] via-z-dark to-z-black min-h-screen flex items-center justify-center p-4 font-poppins">
+
+<div class="flex w-full max-w-[920px] rounded-2xl overflow-hidden border border-z-gold/30 shadow-2xl animate-[fadeIn_0.5s_ease]">
+
+    <!-- Left: Form -->
+    <div class="flex-1 bg-gradient-to-b from-[#151515] to-[#090909] p-8 lg:p-10 overflow-y-auto max-h-[90vh]">
+
+        <?php if ($verification_sent): ?>
+        <!-- Verification Form -->
+        <div class="text-center">
+            <div class="w-16 h-16 bg-z-gold/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <i class="fas fa-envelope-open-text text-2xl text-z-gold"></i>
             </div>
-            <h2 class="brand-name">ZORYN</h2>
-            <img src="../assets/zoryn/login_header.png" alt="Coffee Illustration" class="coffee-illustration">
+            <h1 class="text-2xl font-bold text-z-gold-pale mb-2">Verify Email</h1>
+            <p class="text-sm text-z-gold-pale/60 mb-8">Enter the 4-digit code sent to <br><span class="text-z-gold-light font-medium"><?= isset($_SESSION['temp_user_data']['email']) ? htmlspecialchars($_SESSION['temp_user_data']['email']) : '' ?></span></p>
+        </div>
+
+        <?php if ($error): ?>
+            <div class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-5 text-sm text-red-400 text-center">
+                <i class="fas fa-exclamation-circle mr-1"></i><?= htmlspecialchars($error) ?>
+            </div>
+        <?php endif; ?>
+        <?php if ($success): ?>
+            <div class="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 mb-5 text-sm text-green-400 text-center">
+                <i class="fas fa-check-circle mr-1"></i><?= htmlspecialchars($success) ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" action="" class="space-y-5">
+            <input type="hidden" name="action" value="verify">
+            <div class="flex justify-center">
+                <input type="text" name="verification_code" maxlength="4" pattern="[0-9]{4}" required autofocus
+                       class="w-40 text-center text-3xl tracking-[12px] py-3 bg-z-dark border border-z-border rounded-xl text-z-gold-light focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all font-bold"
+                       placeholder="····">
+            </div>
+            <p class="text-center text-xs text-z-gold-pale/50" id="timer">
+                Resend available in <span id="countdown" class="font-bold text-z-gold-pale/80">60</span>s
+            </p>
+            <button type="submit" class="w-full py-3 gold-btn text-z-black font-semibold rounded-xl shadow-lg shadow-z-gold/20 hover:-translate-y-0.5 transition-all">
+                <i class="fas fa-check-circle mr-2"></i>Verify
+            </button>
+        </form>
+
+        <form method="POST" action="" id="resendForm" class="mt-3 hidden">
+            <input type="hidden" name="action" value="resend">
+            <button type="submit" id="resendButton" disabled
+                    class="w-full py-2.5 bg-transparent border border-z-gold/30 text-z-gold-pale/70 rounded-xl text-sm hover:bg-z-gold/5 hover:border-z-gold/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                <i class="fas fa-redo mr-2"></i>Resend Code
+            </button>
+        </form>
+
+        <p class="text-center mt-6 text-xs text-z-gold-pale/60">
+            <a href="register.php" class="text-z-gold-pale font-medium hover:text-z-gold-light transition"><i class="fas fa-arrow-left mr-1"></i>Back to Registration</a>
+        </p>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let countdown = 60;
+            const timerElement = document.getElementById('countdown');
+            const resendButton = document.getElementById('resendButton');
+            const resendForm = document.getElementById('resendForm');
+            if (timerElement && resendButton && resendForm) {
+                resendForm.classList.remove('hidden');
+                const timer = setInterval(() => {
+                    countdown--;
+                    timerElement.textContent = countdown;
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        document.getElementById('timer').style.display = 'none';
+                        resendButton.disabled = false;
+                    }
+                }, 1000);
+            }
+        });
+        </script>
+
+        <?php else: ?>
+        <!-- Registration Form -->
+        <div class="flex justify-center mb-5 lg:hidden">
+            <img src="../assets/zoryn/zoryn.jpg" alt="Zoryn" class="w-16 h-16 rounded-xl object-cover">
+        </div>
+        <h1 class="text-2xl font-bold text-z-gold-pale mb-1">Create Account</h1>
+        <p class="text-sm text-z-gold-pale/60 mb-6 font-light">Join the Zoryn community today</p>
+
+        <?php if ($error): ?>
+            <div class="bg-z-gold/10 border border-z-gold/30 rounded-xl px-4 py-3 mb-5 text-sm text-z-gold-light">
+                <i class="fas fa-exclamation-circle mr-1"></i><?= htmlspecialchars($error) ?>
+            </div>
+        <?php endif; ?>
+        <?php if ($success): ?>
+            <div class="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 mb-5 text-sm text-green-400">
+                <i class="fas fa-check-circle mr-1"></i><?= htmlspecialchars($success) ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" action="" class="space-y-4">
+            <div>
+                <label for="username" class="block text-xs font-medium text-z-gold-pale/80 mb-1.5 uppercase tracking-wider">Username</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-z-gold/50"><i class="fas fa-user text-sm"></i></span>
+                    <input type="text" id="username" name="username" required
+                           class="w-full pl-11 pr-4 py-2.5 bg-z-dark border border-z-border rounded-xl text-z-gold-light text-sm focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all" placeholder="Choose a username">
+                </div>
+            </div>
+            <div>
+                <label for="full_name" class="block text-xs font-medium text-z-gold-pale/80 mb-1.5 uppercase tracking-wider">Full Name</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-z-gold/50"><i class="fas fa-id-card text-sm"></i></span>
+                    <input type="text" id="full_name" name="full_name" required
+                           class="w-full pl-11 pr-4 py-2.5 bg-z-dark border border-z-border rounded-xl text-z-gold-light text-sm focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all" placeholder="Your full name">
+                </div>
+            </div>
+            <div>
+                <label for="email" class="block text-xs font-medium text-z-gold-pale/80 mb-1.5 uppercase tracking-wider">Email address</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-z-gold/50"><i class="fas fa-envelope text-sm"></i></span>
+                    <input type="email" id="email" name="email" required
+                           class="w-full pl-11 pr-4 py-2.5 bg-z-dark border border-z-border rounded-xl text-z-gold-light text-sm focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all" placeholder="you@example.com">
+                </div>
+            </div>
+            <div>
+                <label for="password" class="block text-xs font-medium text-z-gold-pale/80 mb-1.5 uppercase tracking-wider">Password</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-z-gold/50"><i class="fas fa-lock text-sm"></i></span>
+                    <input type="password" id="password" name="password" required
+                           class="w-full pl-11 pr-12 py-2.5 bg-z-dark border border-z-border rounded-xl text-z-gold-light text-sm focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all" placeholder="Minimum 8 characters">
+                    <button type="button" onclick="togglePassword('password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-z-gold/50 hover:text-z-gold-light transition p-1">
+                        <i class="fas fa-eye text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label for="confirm_password" class="block text-xs font-medium text-z-gold-pale/80 mb-1.5 uppercase tracking-wider">Confirm Password</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-z-gold/50"><i class="fas fa-lock text-sm"></i></span>
+                    <input type="password" id="confirm_password" name="confirm_password" required
+                           class="w-full pl-11 pr-12 py-2.5 bg-z-dark border border-z-border rounded-xl text-z-gold-light text-sm focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all" placeholder="Repeat your password">
+                    <button type="button" onclick="togglePassword('confirm_password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-z-gold/50 hover:text-z-gold-light transition p-1">
+                        <i class="fas fa-eye text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="w-full py-3 gold-btn text-z-black font-semibold rounded-xl shadow-lg shadow-z-gold/20 hover:-translate-y-0.5 transition-all mt-2">
+                <i class="fas fa-user-plus mr-2"></i>Register
+            </button>
+        </form>
+
+        <p class="text-center mt-6 text-xs text-z-gold-pale/60">
+            Already have an account? <a href="login.php" class="text-z-gold-pale font-semibold hover:text-z-gold-light transition">Login here</a>
+        </p>
+        <?php endif; ?>
+    </div>
+
+    <!-- Right: Brand Panel -->
+    <div class="hidden lg:flex flex-1 brand-gradient flex-col items-center justify-center p-10 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute top-10 right-10 w-40 h-40 border border-black/10 rounded-full"></div>
+            <div class="absolute bottom-20 left-10 w-60 h-60 border border-black/10 rounded-full"></div>
+        </div>
+        <div class="relative z-10 text-center">
+            <div class="w-40 h-40 mx-auto mb-6">
+                <img src="../assets/zoryn/zoryn_logo.jpg" alt="Zoryn Logo" class="w-full h-full object-contain rounded-2xl shadow-xl">
+            </div>
+            <h2 class="text-3xl font-bold text-[#1a0e00] tracking-[4px] mb-3">ZORYN</h2>
+            <img src="../assets/zoryn/zoryn.jpg" alt="Coffee" class="w-3/5 mx-auto mt-4 rounded-xl shadow-lg object-contain">
         </div>
     </div>
-    <script>
-    function togglePassword(inputId) {
-        const passwordInput = document.getElementById(inputId);
-        const toggleButton = passwordInput.nextElementSibling;
-        const icon = toggleButton.querySelector('i');
-        
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            icon.classList.remove('fa-eye');
-            icon.classList.add('fa-eye-slash');
-        } else {
-            passwordInput.type = 'password';
-            icon.classList.remove('fa-eye-slash');
-            icon.classList.add('fa-eye');
-        }
-    }
-    </script>
+</div>
+
+<script>
+function togglePassword(inputId) {
+    const inp = document.getElementById(inputId);
+    const icon = inp.parentElement.querySelector('.fa-eye, .fa-eye-slash');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    icon.classList.toggle('fa-eye', !show);
+    icon.classList.toggle('fa-eye-slash', show);
+}
+</script>
 </body>
 </html>
