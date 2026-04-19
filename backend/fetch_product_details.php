@@ -1,5 +1,6 @@
 <?php
 require_once 'dbconn.php';
+require_once 'recipe_cost_helper.php';
 
 header('Content-Type: application/json');
 
@@ -36,7 +37,9 @@ if (isset($_GET['product_id'])) {
                                 i.ingredient_id,
                                 i.ingredient_name,
                                 pi.quantity,
-                                pi.unit
+                                pi.unit,
+                                i.unit AS stock_unit,
+                                i.default_unit_cost
                             FROM product_ingredients pi
                             JOIN ingredients i ON pi.ingredient_id = i.ingredient_id
                             WHERE pi.product_id = ?";
@@ -47,12 +50,16 @@ if (isset($_GET['product_id'])) {
             
             $ingredients = [];
             if ($ingredientsResult->num_rows > 0) {
-                while($ingredient = $ingredientsResult->fetch_assoc()) {
+                while ($ingredient = $ingredientsResult->fetch_assoc()) {
                     $ingredients[] = $ingredient;
                 }
             }
-            
-            $product['ingredients'] = $ingredients;
+
+            $costBundle              = recipe_cost_enrich_lines($ingredients);
+            $product['ingredients']  = $costBundle['lines'];
+            $product['recipe_cost']  = $costBundle['recipe_cost'];
+            $priceNum                = (float) $product['price'];
+            $product['gross_margin'] = round($priceNum - $costBundle['recipe_cost'], 2);
             echo json_encode(['success' => true, 'data' => $product]);
         } else {
             echo json_encode(['success' => false, 'error' => 'Product not found']);

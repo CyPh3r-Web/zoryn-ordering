@@ -4,7 +4,58 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
 require_once 'dbconn.php';
+require_once 'update_inventory.php';
 session_start();
+
+function assertCanManageOrders() {
+    if (!empty($_SESSION['admin_id'])) {
+        return true;
+    }
+    if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'cashier') {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Recompute subtotal / tax / total from remaining order_items (tax-inclusive line prices).
+ */
+function recalculateOrderTotals($conn, $order_id) {
+    $stmt = $conn->prepare("
+        SELECT oi.price, oi.quantity, COALESCE(p.tax_rate, 12) AS tax_rate
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE oi.order_id = ?
+    ");
+    $stmt->bind_param("i", $order_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $subtotal = 0.0;
+    $tax_amount = 0.0;
+
+    while ($row = $result->fetch_assoc()) {
+        $line = (float) $row['price'] * (int) $row['quantity'];
+        $rate = (float) $row['tax_rate'];
+        if ($rate > 0) {
+            $net = $line / (1 + ($rate / 100));
+            $subtotal += $net;
+            $tax_amount += ($line - $net);
+        } else {
+            $subtotal += $line;
+        }
+    }
+
+    $total_amount = round($subtotal + $tax_amount, 2);
+    $subtotal = round($subtotal, 2);
+    $tax_amount = round($tax_amount, 2);
+
+    $upd = $conn->prepare("UPDATE orders SET subtotal = ?, tax_amount = ?, total_amount = ?, updated_at = NOW() WHERE order_id = ?");
+    $upd->bind_param("dddi", $subtotal, $tax_amount, $total_amount, $order_id);
+    $upd->execute();
+
+    return ['subtotal' => $subtotal, 'tax_amount' => $tax_amount, 'total_amount' => $total_amount];
+}
 
 // Handle different actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -50,6 +101,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
         case 'delete_order':
             deleteOrder();
+            break;
+
+        case 'cancel_order':
+            cancelOrder();
+            break;
+
+        case 'remove_order_item':
+            removeOrderItem();
             break;
             
         default:
@@ -269,12 +328,15 @@ function checkNotifications() {
     
     try {
         // Get unread notifications
-        $stmt = $conn->prepare("SELECT * FROM notifications WHERE is_read = 0 ORDER BY created_at DESC");
+        $stmt = $conn->prepare("SELECT * FROM notifications WHERE is_read = 0 ORDER BY created_at ASC, id ASC");
         $stmt->execute();
         $result = $stmt->get_result();
         
         $notifications = [];
         while ($row = $result->fetch_assoc()) {
+            if (isset($row['created_at'])) {
+                $row['created_at'] = zoryn_datetime_to_iso8601($row['created_at']);
+            }
             $notifications[] = $row;
         }
         
@@ -298,30 +360,190 @@ function checkNotifications() {
 
 function deleteOrder() {
     global $conn;
-    $orderId = $_POST['order_id'];
-    
-    // Start transaction
+    if (!assertCanManageOrders()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        return;
+    }
+    $orderId = (int) ($_POST['order_id'] ?? 0);
+    if ($orderId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid order']);
+        return;
+    }
+
     $conn->begin_transaction();
-    
+
     try {
-        // First delete order items
+        $lines = [];
+        $q = $conn->prepare("SELECT product_id, quantity FROM order_items WHERE order_id = ?");
+        $q->bind_param("i", $orderId);
+        $q->execute();
+        $rs = $q->get_result();
+        while ($row = $rs->fetch_assoc()) {
+            $lines[] = ['product_id' => (int) $row['product_id'], 'quantity' => (int) $row['quantity']];
+        }
+
+        if (!empty($lines)) {
+            $inv = new InventoryUpdater($conn);
+            if (!$inv->restockIngredientsForLines($lines, $orderId, 'Order delete restock')) {
+                throw new Exception('Failed to restock inventory before delete');
+            }
+        }
+
         $stmt = $conn->prepare("DELETE FROM order_items WHERE order_id = ?");
         $stmt->bind_param("i", $orderId);
         $stmt->execute();
-        
-        // Then delete the order
+
         $stmt = $conn->prepare("DELETE FROM orders WHERE order_id = ?");
         $stmt->bind_param("i", $orderId);
         $stmt->execute();
-        
-        // Commit transaction
+
         $conn->commit();
-        
+
         echo json_encode(['success' => true, 'message' => 'Order deleted successfully']);
     } catch (Exception $e) {
-        // Rollback transaction on error
         $conn->rollback();
         echo json_encode(['success' => false, 'message' => 'Failed to delete order: ' . $e->getMessage()]);
+    }
+}
+
+function cancelOrder() {
+    global $conn;
+    if (!assertCanManageOrders()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        return;
+    }
+    $orderId = (int) ($_POST['order_id'] ?? 0);
+    if ($orderId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid order']);
+        return;
+    }
+
+    $conn->begin_transaction();
+
+    try {
+        $stmt = $conn->prepare("SELECT order_id, order_status FROM orders WHERE order_id = ?");
+        $stmt->bind_param("i", $orderId);
+        $stmt->execute();
+        $order = $stmt->get_result()->fetch_assoc();
+
+        if (!$order) {
+            $conn->rollback();
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+
+        if ($order['order_status'] === 'cancelled') {
+            $conn->rollback();
+            echo json_encode(['success' => true, 'message' => 'Order is already cancelled']);
+            return;
+        }
+
+        if ($order['order_status'] === 'completed') {
+            $conn->rollback();
+            echo json_encode(['success' => false, 'message' => 'Cannot cancel a completed order']);
+            return;
+        }
+
+        $lines = [];
+        $q = $conn->prepare("SELECT product_id, quantity FROM order_items WHERE order_id = ?");
+        $q->bind_param("i", $orderId);
+        $q->execute();
+        $rs = $q->get_result();
+        while ($row = $rs->fetch_assoc()) {
+            $lines[] = ['product_id' => (int) $row['product_id'], 'quantity' => (int) $row['quantity']];
+        }
+
+        if (!empty($lines)) {
+            $inv = new InventoryUpdater($conn);
+            if (!$inv->restockIngredientsForLines($lines, $orderId, 'Order cancelled')) {
+                throw new Exception('Failed to restock inventory');
+            }
+        }
+
+        $cancelled = 'cancelled';
+        $upd = $conn->prepare("UPDATE orders SET order_status = ?, updated_at = NOW() WHERE order_id = ?");
+        $upd->bind_param("si", $cancelled, $orderId);
+        $upd->execute();
+
+        $conn->commit();
+        echo json_encode(['success' => true, 'message' => 'Order cancelled']);
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function removeOrderItem() {
+    global $conn;
+    if (!assertCanManageOrders()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        return;
+    }
+    $orderId = (int) ($_POST['order_id'] ?? 0);
+    $orderItemId = (int) ($_POST['order_item_id'] ?? 0);
+    if ($orderId <= 0 || $orderItemId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid request']);
+        return;
+    }
+
+    $conn->begin_transaction();
+
+    try {
+        $stmt = $conn->prepare("
+            SELECT o.order_id, o.order_status, oi.order_item_id, oi.product_id, oi.quantity
+            FROM orders o
+            JOIN order_items oi ON o.order_id = oi.order_id
+            WHERE o.order_id = ? AND oi.order_item_id = ?
+        ");
+        $stmt->bind_param("ii", $orderId, $orderItemId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+
+        if (!$row) {
+            $conn->rollback();
+            echo json_encode(['success' => false, 'message' => 'Line item not found']);
+            return;
+        }
+
+        if (in_array($row['order_status'], ['completed', 'cancelled'], true)) {
+            $conn->rollback();
+            echo json_encode(['success' => false, 'message' => 'Cannot remove items from this order']);
+            return;
+        }
+
+        $inv = new InventoryUpdater($conn);
+        if (!$inv->restockIngredientsForLines(
+            [['product_id' => (int) $row['product_id'], 'quantity' => (int) $row['quantity']]],
+            $orderId,
+            'Line item removed'
+        )) {
+            throw new Exception('Failed to restock inventory');
+        }
+
+        $del = $conn->prepare("DELETE FROM order_items WHERE order_item_id = ? AND order_id = ?");
+        $del->bind_param("ii", $orderItemId, $orderId);
+        $del->execute();
+
+        $countStmt = $conn->prepare("SELECT COUNT(*) AS c FROM order_items WHERE order_id = ?");
+        $countStmt->bind_param("i", $orderId);
+        $countStmt->execute();
+        $remaining = (int) $countStmt->get_result()->fetch_assoc()['c'];
+
+        if ($remaining === 0) {
+            $cancelled = 'cancelled';
+            $zero = 0.0;
+            $z = $conn->prepare("UPDATE orders SET order_status = ?, subtotal = ?, tax_amount = ?, total_amount = ?, updated_at = NOW() WHERE order_id = ?");
+            $z->bind_param("sdddi", $cancelled, $zero, $zero, $zero, $orderId);
+            $z->execute();
+        } else {
+            recalculateOrderTotals($conn, $orderId);
+        }
+
+        $conn->commit();
+        echo json_encode(['success' => true, 'message' => 'Item removed', 'order_empty' => $remaining === 0]);
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
 }
 ?> 

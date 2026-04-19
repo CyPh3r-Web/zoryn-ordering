@@ -39,6 +39,11 @@ try {
     $current_status = $order['order_status'];
     $new_status = '';
     
+    if ($current_status === 'cancelled') {
+        echo json_encode(['success' => false, 'message' => 'Order is cancelled']);
+        exit;
+    }
+
     if ($current_status === 'pending') {
         $new_status = 'preparing';
     } else if ($current_status === 'preparing') {

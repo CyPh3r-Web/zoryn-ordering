@@ -7,7 +7,7 @@ function isActive($page) {
 
 function isFinancePage() {
     global $current_page;
-    return in_array($current_page, ['reports.php', 'balance-sheet.php']);
+    return in_array($current_page, ['reports.php', 'balance-sheet.php', 'purchase-orders.php']);
 }
 
 function renderSidebarIcon($name) {
@@ -21,6 +21,7 @@ function renderSidebarIcon($name) {
         'finance' => '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="' . $baseClass . '" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"></path></svg>',
         'reports' => '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="' . $baseClass . '" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 17.25V10.5"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 17.25V6.75"></path><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 17.25v-4.5"></path><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 20.25h15"></path></svg>',
         'balance_sheet' => '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="' . $baseClass . '" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 0 1-2.031.352 5.988 5.988 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971Zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 0 1-2.031.352 5.989 5.989 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971Z"></path></svg>',
+        'purchase_orders' => '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="' . $baseClass . '" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.25h13.5v9.75a1.5 1.5 0 0 1-1.5 1.5H4.5a1.5 1.5 0 0 1-1.5-1.5V8.25Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 11.25h3l2.25 3v3a1.5 1.5 0 0 1-1.5 1.5H18"></path><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 19.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M18 19.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"></path></svg>',
         'chevron' => '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="h-4 w-4 stroke-[2] text-current transition-transform duration-300" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"></path></svg>',
         'users' => '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="' . $baseClass . '" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.125a7.5 7.5 0 0 1 15 0"></path></svg>',
         'logout' => '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="' . $baseClass . '" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6.75V5.625A1.875 1.875 0 0 1 12.375 3.75h5.25A1.875 1.875 0 0 1 19.5 5.625v12.75a1.875 1.875 0 0 1-1.875 1.875h-5.25A1.875 1.875 0 0 1 10.5 18.375V17.25"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12H4.5"></path><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 8.25-3.75 3.75 3.75 3.75"></path></svg>',
@@ -75,6 +76,12 @@ function renderSidebarIcon($name) {
                         <a href="balance-sheet.php" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[#B0B0B0] hover:text-[#F5D76E] hover:bg-[#D4AF37]/8 transition-all duration-200">
                             <span class="w-5 h-5 flex items-center justify-center"><?= renderSidebarIcon('balance_sheet') ?></span>
                             <span>Balance Sheet</span>
+                        </a>
+                    </li>
+                    <li class="<?= isActive('purchase-orders.php') ? 'sub-active' : '' ?>">
+                        <a href="purchase-orders.php" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-[#B0B0B0] hover:text-[#F5D76E] hover:bg-[#D4AF37]/8 transition-all duration-200">
+                            <span class="w-5 h-5 flex items-center justify-center"><?= renderSidebarIcon('purchase_orders') ?></span>
+                            <span>Purchase Orders</span>
                         </a>
                     </li>
                 </ul>

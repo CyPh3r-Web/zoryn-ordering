@@ -39,7 +39,7 @@ function getNotifications() {
             FROM notifications n
             LEFT JOIN orders o ON n.order_id = o.order_id
             WHERE n.user_id = ?
-            ORDER BY n.created_at DESC
+            ORDER BY n.created_at ASC, n.id ASC
         ");
         
         $user_id = $_SESSION['user_id'] ?? null;
@@ -47,14 +47,25 @@ function getNotifications() {
         $stmt->execute();
         $result = $stmt->get_result();
         
-        $notifications = [];
+        $rows = [];
         while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        usort($rows, function ($a, $b) {
+            $cmp = strcmp((string)($a['created_at'] ?? ''), (string)($b['created_at'] ?? ''));
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            return ((int)($a['id'] ?? 0)) <=> ((int)($b['id'] ?? 0));
+        });
+        $notifications = [];
+        foreach ($rows as $row) {
             $notifications[] = [
                 'id' => $row['id'],
                 'order_id' => $row['order_id'],
                 'message' => $row['message'],
                 'is_read' => $row['is_read'],
-                'created_at' => $row['created_at'],
+                'created_at' => zoryn_datetime_to_iso8601($row['created_at'] ?? null),
                 'order_status' => $row['order_status'],
                 'payment_status' => $row['payment_status']
             ];

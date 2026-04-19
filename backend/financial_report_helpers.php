@@ -148,6 +148,204 @@ function fr_completed_orders_where(string $alias = 'o'): string
     return "{$alias}.order_status = 'completed'";
 }
 
+/**
+ * Unit conversion aligned with InventoryUpdater (update_inventory.php) for COGS.
+ * Returns null if units are incompatible or unknown.
+ */
+function fr_units_compatible_for_cogs(string $unit1, string $unit2): bool
+{
+    $weightUnits = ['kg', 'g', 'mg', 'oz', 'lb'];
+    $volumeUnits = ['liters', 'l', 'ml', 'cup', 'tbsp', 'tsp', 'fl oz'];
+    $countUnits = ['pcs', 'pieces', 'units'];
+    $u1 = strtolower(trim($unit1));
+    $u2 = strtolower(trim($unit2));
+    if ($u1 === '' || $u2 === '') {
+        return false;
+    }
+    if (in_array($u1, $weightUnits, true) && in_array($u2, $weightUnits, true)) {
+        return true;
+    }
+    if (in_array($u1, $volumeUnits, true) && in_array($u2, $volumeUnits, true)) {
+        return true;
+    }
+    if (in_array($u1, $countUnits, true) && in_array($u2, $countUnits, true)) {
+        return true;
+    }
+    return false;
+}
+
+function fr_cogs_to_base_unit(float $quantity, string $unit): ?float
+{
+    $unit = strtolower(trim($unit));
+    switch ($unit) {
+        case 'kg':
+            return $quantity * 1000;
+        case 'g':
+            return $quantity;
+        case 'mg':
+            return $quantity / 1000;
+        case 'oz':
+            return $quantity * 28.3495;
+        case 'lb':
+            return $quantity * 453.592;
+        case 'liters':
+        case 'l':
+            return $quantity * 1000;
+        case 'ml':
+            return $quantity;
+        case 'cup':
+            return $quantity * 236.588;
+        case 'tbsp':
+            return $quantity * 14.7868;
+        case 'tsp':
+            return $quantity * 4.92892;
+        case 'fl oz':
+            return $quantity * 29.5735;
+        case 'pcs':
+        case 'pieces':
+        case 'units':
+            return $quantity;
+        default:
+            return null;
+    }
+}
+
+function fr_cogs_from_base_unit(float $quantity, string $unit): ?float
+{
+    $unit = strtolower(trim($unit));
+    switch ($unit) {
+        case 'kg':
+            return $quantity / 1000;
+        case 'g':
+            return $quantity;
+        case 'mg':
+            return $quantity * 1000;
+        case 'oz':
+            return $quantity / 28.3495;
+        case 'lb':
+            return $quantity / 453.592;
+        case 'liters':
+        case 'l':
+            return $quantity / 1000;
+        case 'ml':
+            return $quantity;
+        case 'cup':
+            return $quantity / 236.588;
+        case 'tbsp':
+            return $quantity / 14.7868;
+        case 'tsp':
+            return $quantity / 4.92892;
+        case 'fl oz':
+            return $quantity / 29.5735;
+        case 'pcs':
+        case 'pieces':
+        case 'units':
+            return $quantity;
+        default:
+            return null;
+    }
+}
+
+function fr_convert_quantity_for_cogs(float $quantity, string $fromUnit, string $toUnit): ?float
+{
+    $from = strtolower(trim($fromUnit));
+    $to = strtolower(trim($toUnit));
+    if ($from === '' || $to === '') {
+        return null;
+    }
+    if ($from === $to) {
+        return $quantity;
+    }
+    if (!fr_units_compatible_for_cogs($fromUnit, $toUnit)) {
+        return null;
+    }
+    $base = fr_cogs_to_base_unit($quantity, $from);
+    if ($base === null) {
+        return null;
+    }
+    return fr_cogs_from_base_unit($base, $to);
+}
+
+/**
+ * Sum COGS for rows matching $orderWhereSql (full WHERE clause for joined orders o).
+ */
+function fr_sum_cogs_from_order_lines(mysqli $conn, string $orderWhereSql, string $paramTypes, array $paramValues): float
+{
+    $sql = "SELECT oi.quantity AS order_qty, pi.quantity AS recipe_qty, pi.unit AS recipe_unit,
+                   COALESCE(i.default_unit_cost, 0) AS default_unit_cost, i.unit AS ingredient_unit
+            FROM order_items oi
+            INNER JOIN orders o ON o.order_id = oi.order_id
+            INNER JOIN product_ingredients pi ON pi.product_id = oi.product_id
+            INNER JOIN ingredients i ON i.ingredient_id = pi.ingredient_id
+            WHERE {$orderWhereSql}";
+    $rows = fr_fetch_all($conn, $sql, $paramTypes, $paramValues);
+    $total = 0.0;
+    foreach ($rows as $row) {
+        $need = (float) $row['order_qty'] * (float) $row['recipe_qty'];
+        $converted = fr_convert_quantity_for_cogs($need, (string) $row['recipe_unit'], (string) $row['ingredient_unit']);
+        if ($converted === null) {
+            continue;
+        }
+        $total += $converted * (float) $row['default_unit_cost'];
+    }
+    return fr_currency($total);
+}
+
+/**
+ * Per-product COGS (converted units) and units sold for reporting tables/charts.
+ */
+function fr_cogs_breakdown_by_product(mysqli $conn, string $orderWhereSql, string $paramTypes, array $paramValues): array
+{
+    $detailSql = "SELECT oi.product_id, p.product_name, oi.quantity AS order_qty, pi.quantity AS recipe_qty, pi.unit AS recipe_unit,
+                         COALESCE(i.default_unit_cost, 0) AS default_unit_cost, i.unit AS ingredient_unit
+                  FROM order_items oi
+                  INNER JOIN orders o ON o.order_id = oi.order_id
+                  INNER JOIN products p ON p.product_id = oi.product_id
+                  INNER JOIN product_ingredients pi ON pi.product_id = oi.product_id
+                  INNER JOIN ingredients i ON i.ingredient_id = pi.ingredient_id
+                  WHERE {$orderWhereSql}";
+    $detailRows = fr_fetch_all($conn, $detailSql, $paramTypes, $paramValues);
+
+    $cogsByProduct = [];
+    foreach ($detailRows as $row) {
+        $pid = (int) $row['product_id'];
+        $need = (float) $row['order_qty'] * (float) $row['recipe_qty'];
+        $converted = fr_convert_quantity_for_cogs($need, (string) $row['recipe_unit'], (string) $row['ingredient_unit']);
+        if ($converted === null) {
+            continue;
+        }
+        $line = $converted * (float) $row['default_unit_cost'];
+        if (!isset($cogsByProduct[$pid])) {
+            $cogsByProduct[$pid] = ['product_name' => $row['product_name'], 'cogs_value' => 0.0];
+        }
+        $cogsByProduct[$pid]['cogs_value'] += $line;
+    }
+
+    $unitsSql = "SELECT oi.product_id, SUM(oi.quantity) AS units_sold
+                 FROM order_items oi
+                 INNER JOIN orders o ON o.order_id = oi.order_id
+                 WHERE {$orderWhereSql}
+                 GROUP BY oi.product_id";
+    $unitsRows = fr_fetch_all($conn, $unitsSql, $paramTypes, $paramValues);
+    $unitsMap = [];
+    foreach ($unitsRows as $ur) {
+        $unitsMap[(int) $ur['product_id']] = (float) $ur['units_sold'];
+    }
+
+    $out = [];
+    foreach ($cogsByProduct as $pid => $info) {
+        $out[] = [
+            'product_name' => $info['product_name'],
+            'units_sold' => $unitsMap[$pid] ?? 0,
+            'cogs_value' => fr_currency($info['cogs_value']),
+        ];
+    }
+    usort($out, static function ($a, $b) {
+        return ($b['cogs_value'] <=> $a['cogs_value']);
+    });
+    return $out;
+}
+
 // ====================================================================
 // INCOME STATEMENT - derives from orders, order_items, product_ingredients
 // ====================================================================
@@ -172,19 +370,9 @@ function fr_build_income_statement(mysqli $conn, array $filters): array
     $hasUnitCost = fr_column_exists($conn, 'ingredients', 'default_unit_cost');
 
     if ($hasUnitCost && fr_table_exists($conn, 'product_ingredients')) {
-        $cogsRows = fr_fetch_all($conn,
-            "SELECT p.product_name, SUM(oi.quantity) AS units_sold,
-                    SUM(oi.quantity * pi.quantity * COALESCE(i.default_unit_cost, 0)) AS cogs_value
-             FROM order_items oi
-             INNER JOIN orders o ON o.order_id = oi.order_id
-             INNER JOIN products p ON p.product_id = oi.product_id
-             INNER JOIN product_ingredients pi ON pi.product_id = oi.product_id
-             INNER JOIN ingredients i ON i.ingredient_id = pi.ingredient_id
-             WHERE {$where} AND o.created_at BETWEEN ? AND ?
-             GROUP BY p.product_id, p.product_name
-             ORDER BY cogs_value DESC",
-            'ss', [$sd, $ed]);
-        foreach ($cogsRows as $r) $cogs += (float) ($r['cogs_value'] ?? 0);
+        $orderWhere = "{$where} AND o.created_at BETWEEN ? AND ?";
+        $cogs = fr_sum_cogs_from_order_lines($conn, $orderWhere, 'ss', [$sd, $ed]);
+        $cogsRows = fr_cogs_breakdown_by_product($conn, $orderWhere, 'ss', [$sd, $ed]);
     }
 
     if ($cogs == 0 && $revenue > 0) {
@@ -302,15 +490,15 @@ function fr_build_balance_sheet(mysqli $conn, array $filters, array $incomeState
 
     $allTimeCOGS = fr_currency($allTimeRevenue * 0.35);
     if (fr_column_exists($conn, 'ingredients', 'default_unit_cost') && fr_table_exists($conn, 'product_ingredients')) {
-        $computedCOGS = (float) fr_fetch_value($conn,
-            "SELECT COALESCE(SUM(oi.quantity * pi.quantity * COALESCE(i.default_unit_cost, 0)), 0)
-             FROM order_items oi
-             INNER JOIN orders o ON o.order_id = oi.order_id
-             INNER JOIN product_ingredients pi ON pi.product_id = oi.product_id
-             INNER JOIN ingredients i ON i.ingredient_id = pi.ingredient_id
-             WHERE o.order_status = 'completed' AND o.created_at <= ?",
-            's', [$endDt], 0);
-        if ($computedCOGS > 0) $allTimeCOGS = fr_currency($computedCOGS);
+        $computedCOGS = fr_sum_cogs_from_order_lines(
+            $conn,
+            "o.order_status = 'completed' AND o.created_at <= ?",
+            's',
+            [$endDt]
+        );
+        if ($computedCOGS > 0) {
+            $allTimeCOGS = fr_currency($computedCOGS);
+        }
     }
 
     $retainedEarnings = fr_currency($allTimeRevenue - $allTimeCOGS - $expensesPaid);
@@ -573,12 +761,95 @@ function fr_build_inventory_report(mysqli $conn, array $filters): array
 }
 
 // ====================================================================
+// PURCHASE ORDER REPORT - supplier spend, qty purchased, line detail
+// ====================================================================
+function fr_build_purchase_order_report(mysqli $conn, array $filters): array
+{
+    if (!fr_table_exists($conn, 'purchase_orders')) {
+        return [
+            'summary' => ['total_pos' => 0, 'total_spend' => 0, 'total_ingredients' => 0, 'top_supplier' => '—'],
+            'charts'  => ['primary' => ['labels' => [], 'datasets' => []], 'secondary' => ['labels' => [], 'datasets' => []]],
+            'table_rows' => [],
+        ];
+    }
+
+    $startDate = $filters['start_date'];
+    $endDate   = $filters['end_date'];
+
+    $whereSupplier = '';
+    $types  = 'ss';
+    $params = [$startDate, $endDate];
+    if ($filters['supplier_id'] !== null) {
+        $whereSupplier = ' AND po.supplier_id = ?';
+        $types .= 'i';
+        $params[] = $filters['supplier_id'];
+    }
+
+    $rows = fr_fetch_all($conn,
+        "SELECT po.po_id, po.po_number, po.po_date, po.total_amount, po.status,
+                COALESCE(s.supplier_name, 'Unknown') AS supplier_name,
+                (SELECT COALESCE(SUM(pi.quantity),0) FROM purchase_order_items pi WHERE pi.po_id = po.po_id) AS total_qty,
+                (SELECT COUNT(*) FROM purchase_order_items pi WHERE pi.po_id = po.po_id) AS item_count
+         FROM purchase_orders po
+         LEFT JOIN suppliers s ON s.supplier_id = po.supplier_id
+         WHERE po.po_date BETWEEN ? AND ? {$whereSupplier}
+         ORDER BY po.po_date DESC, po.po_id DESC",
+        $types, $params);
+
+    $totalSpend = 0.0; $totalQty = 0.0; $supplierSpend = [];
+    foreach ($rows as $r) {
+        if ($r['status'] === 'cancelled') continue;
+        $totalSpend += (float) $r['total_amount'];
+        $totalQty   += (float) $r['total_qty'];
+        $supplierSpend[$r['supplier_name']] = ($supplierSpend[$r['supplier_name']] ?? 0) + (float) $r['total_amount'];
+    }
+    arsort($supplierSpend);
+    $topSupplier = !empty($supplierSpend) ? array_key_first($supplierSpend) : '—';
+
+    $tableRows = [];
+    foreach ($rows as $r) {
+        $tableRows[] = [
+            'po_number'   => $r['po_number'],
+            'po_date'     => $r['po_date'],
+            'supplier'    => $r['supplier_name'],
+            'line_items'  => (int) $r['item_count'],
+            'total_qty'   => round((float) $r['total_qty'], 2),
+            'total_price' => fr_currency((float) $r['total_amount']),
+            'status'      => $r['status'],
+        ];
+    }
+
+    return [
+        'summary' => [
+            'total_pos'         => count($rows),
+            'total_spend'       => fr_currency($totalSpend),
+            'total_ingredients' => round($totalQty, 2),
+            'top_supplier'      => $topSupplier,
+        ],
+        'charts' => [
+            'primary' => [
+                'labels' => array_keys($supplierSpend),
+                'datasets' => [['label' => 'Spend by Supplier', 'data' => array_map(fn($v) => fr_currency($v), array_values($supplierSpend))]],
+            ],
+            'secondary' => [
+                'labels' => array_map(fn($r) => $r['po_number'], array_slice($rows, 0, 10)),
+                'datasets' => [['label' => 'Recent POs', 'data' => array_map(fn($r) => fr_currency((float) $r['total_amount']), array_slice($rows, 0, 10))]],
+            ],
+        ],
+        'table_rows' => $tableRows,
+    ];
+}
+
+// ====================================================================
 // FILTER OPTIONS
 // ====================================================================
 function fr_get_filter_options(mysqli $conn): array
 {
     $categories = fr_fetch_all($conn, "SELECT category_id, category_name FROM categories ORDER BY category_name ASC");
-    return ['categories' => $categories, 'suppliers' => []];
+    $suppliers  = fr_table_exists($conn, 'suppliers')
+        ? fr_fetch_all($conn, "SELECT supplier_id, supplier_name FROM suppliers WHERE status = 'active' ORDER BY supplier_name ASC")
+        : [];
+    return ['categories' => $categories, 'suppliers' => $suppliers];
 }
 
 // ====================================================================
@@ -591,6 +862,7 @@ function fr_build_financial_reports_payload(mysqli $conn, array $rawFilters): ar
     $balance = fr_build_balance_sheet($conn, $filters, $income);
     $cashFlow = fr_build_cash_flow($conn, $filters, $income);
     $inventory = fr_build_inventory_report($conn, $filters);
+    $purchase = fr_build_purchase_order_report($conn, $filters);
 
     return [
         'filters' => $filters,
@@ -600,6 +872,7 @@ function fr_build_financial_reports_payload(mysqli $conn, array $rawFilters): ar
             'balance_sheet' => $balance,
             'cash_flow' => $cashFlow,
             'inventory' => $inventory,
+            'purchase_orders' => $purchase,
         ],
     ];
 }

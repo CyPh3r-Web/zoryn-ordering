@@ -195,6 +195,14 @@ require_once '../backend/dbconn.php';
                     
                     // Convert stock to number
                     const stock = parseFloat(ingredient.stock);
+                    const totalUsed = parseFloat(ingredient.total_used) || 0;
+                    // stock is already the remaining stock (DB already deducts usage)
+                    const originalStock = stock + totalUsed;
+                    const usagePercent = originalStock > 0
+                        ? Math.min(100, Math.round((totalUsed / originalStock) * 100))
+                        : 0;
+                    const remainingPercent = 100 - usagePercent;
+                    const barClass = usagePercent >= 80 ? 'critical' : usagePercent >= 50 ? 'medium' : 'high';
                     
                     const stockStatus = getStockStatus(stock, ingredient.unit);
                     if (statusFilterValue && stockStatus !== statusFilterValue) return;
@@ -218,10 +226,10 @@ require_once '../backend/dbconn.php';
                                 </div>
                                 <div class="stock-level-container">
                                     <div class="stock-level-bar-container">
-                                        <div class="stock-level-bar ${getStockLevel(stock, ingredient.unit)}" 
-                                             style="width: ${calculatePercentage(stock, ingredient.unit)}%"></div>
+                                        <div class="stock-level-bar ${barClass}" 
+                                             style="width: ${remainingPercent}%"></div>
                                     </div>
-                                    <span class="stock-level-percentage">${calculatePercentage(stock, ingredient.unit)}%</span>
+                                    <span class="stock-level-percentage">${remainingPercent}%</span>
                                 </div>
                             </div>
                         </td>
@@ -279,28 +287,35 @@ require_once '../backend/dbconn.php';
                 return getStockStatus(stock, unit);
             }
 
-            // Calculate percentage for progress bar based on medium threshold
-            function calculatePercentage(stock, unit) {
-                let mediumThreshold;
-                
-                switch(unit.toLowerCase()) {
+            /**
+             * Bar fill is purely from current stock vs a capacity (100% = full bar).
+             * - Default: 10 kg/L or 100 pcs = 100% (so 5 kg ≈ 50%, 2.5 kg ≈ 25%).
+             * - If reorder_level > 0: 100% at 2× reorder (restock target is half the bar).
+             */
+            function calculatePercentage(stock, unit, reorderLevelRaw) {
+                const s = parseFloat(stock);
+                const stockNum = Number.isFinite(s) ? s : 0;
+                const reorder = parseFloat(reorderLevelRaw);
+                const u = (unit || '').toLowerCase();
+
+                let cap100;
+                switch (u) {
                     case 'kg':
                     case 'liters':
                     case 'l':
-                        mediumThreshold = 1.0; // Medium threshold is 1.0 kg/liters
+                        cap100 = reorder > 0 ? Math.max(reorder * 2, 0.01) : 10;
                         break;
                     case 'pcs':
-                        mediumThreshold = 40; // Medium threshold is 40 pieces
+                        cap100 = reorder > 0 ? Math.max(reorder * 2, 1) : 100;
                         break;
                     default:
-                        mediumThreshold = 1.0;
+                        cap100 = reorder > 0 ? Math.max(reorder * 2, 0.01) : 10;
                 }
-                
-                // Calculate percentage based on medium threshold
-                // If stock is above medium, show 100%
-                // If stock is below medium, show percentage of medium
-                const percentage = Math.round((stock / mediumThreshold) * 100);
-                return Math.min(percentage, 100);
+
+                if (cap100 <= 0) {
+                    return 0;
+                }
+                return Math.max(0, Math.min(100, Math.round((stockNum / cap100) * 100)));
             }
 
             // Populate category filter
@@ -464,8 +479,14 @@ require_once '../backend/dbconn.php';
                     // Ensure values are numbers
                     const currentStock = parseFloat(ingredient.current_stock) || 0;
                     const totalUsed = parseFloat(ingredient.total_used) || 0;
-                    const remaining = currentStock - totalUsed;
-                    const usageStatus = getUsageStatus(remaining, ingredient.unit);
+                    // currentStock is already the remaining stock (DB already deducts usage)
+                    // Original stock = what we had before any orders consumed it
+                    const originalStock = currentStock + totalUsed;
+                    const usagePercent = originalStock > 0
+                        ? Math.min(100, Math.round((totalUsed / originalStock) * 100))
+                        : 0;
+                    const usageStatus = getUsageStatus(currentStock, ingredient.unit);
+                    const barClass = usagePercent >= 80 ? 'critical' : usagePercent >= 50 ? 'medium' : 'high';
 
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -478,7 +499,21 @@ require_once '../backend/dbconn.php';
                         <td>${ingredient.category_name}</td>
                         <td>${currentStock.toFixed(2)} ${ingredient.unit}</td>
                         <td>${totalUsed.toFixed(2)} ${ingredient.unit}</td>
-                        <td>${remaining.toFixed(2)} ${ingredient.unit}</td>
+                        <td>
+                            <div class="stock-info">
+                                <div class="stock-amount-container">
+                                    <span class="stock-amount">${currentStock.toFixed(2)}</span>
+                                    <span class="stock-unit">${ingredient.unit}</span>
+                                </div>
+                                <div class="stock-level-container">
+                                    <div class="stock-level-bar-container">
+                                        <div class="stock-level-bar ${barClass}" 
+                                             style="width: ${100 - usagePercent}%"></div>
+                                    </div>
+                                    <span class="stock-level-percentage">${100 - usagePercent}%</span>
+                                </div>
+                            </div>
+                        </td>
                         <td>
                             <span class="usage-status ${usageStatus.toLowerCase()}">
                                 ${usageStatus}
@@ -489,11 +524,11 @@ require_once '../backend/dbconn.php';
                 });
             }
 
-            // Function to determine usage status
+            // Function to determine usage status based on remaining stock
             function getUsageStatus(remaining, unit) {
                 unit = unit.toLowerCase();
                 
-                let criticalThreshold, lowThreshold;
+                let criticalThreshold, lowThreshold, mediumThreshold;
                 
                 switch(unit) {
                     case 'kg':
@@ -501,18 +536,22 @@ require_once '../backend/dbconn.php';
                     case 'l':
                         criticalThreshold = 0.2;
                         lowThreshold = 0.5;
+                        mediumThreshold = 1.0;
                         break;
                     case 'pcs':
                         criticalThreshold = 10;
                         lowThreshold = 20;
+                        mediumThreshold = 40;
                         break;
                     default:
                         criticalThreshold = 0.2;
                         lowThreshold = 0.5;
+                        mediumThreshold = 1.0;
                 }
                 
                 if (remaining <= criticalThreshold) return 'CRITICAL';
                 if (remaining <= lowThreshold) return 'WARNING';
+                if (remaining <= mediumThreshold) return 'MEDIUM';
                 return 'GOOD';
             }
 

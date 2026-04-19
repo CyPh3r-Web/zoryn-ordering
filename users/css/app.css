@@ -153,9 +153,11 @@ body:not(.auth-page)::before {
 }
 
 .category-pill.active {
-    border-color: rgba(212, 175, 55, 0.5);
-    background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.04));
-    box-shadow: 0 0 12px rgba(212, 175, 55, 0.08);
+    border-color: #D4AF37;
+    background: linear-gradient(145deg, rgba(212, 175, 55, 0.28) 0%, rgba(212, 175, 55, 0.1) 50%, rgba(26, 18, 4, 0.35) 100%);
+    box-shadow:
+        0 0 0 1px rgba(212, 175, 55, 0.35),
+        0 4px 18px rgba(212, 175, 55, 0.2);
 }
 
 .category-pill-img {
@@ -168,7 +170,8 @@ body:not(.auth-page)::before {
 }
 
 .category-pill.active .category-pill-img {
-    border-color: rgba(212, 175, 55, 0.5);
+    border-color: #D4AF37;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.35);
 }
 
 .category-pill-name {
@@ -180,8 +183,9 @@ body:not(.auth-page)::before {
 }
 
 .category-pill.active .category-pill-name {
-    color: #D4AF37;
-    font-weight: 600;
+    color: #F5D76E;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 .category-pill:hover .category-pill-name {
@@ -189,17 +193,33 @@ body:not(.auth-page)::before {
 }
 
 .category-pill.active:hover .category-pill-name {
-    color: #D4AF37;
+    color: #F5D76E;
 }
 
-/* Category modal (SweetAlert overrides) */
+/* Category modal (SweetAlert overrides) — wide/tall popup, full photo visible (no crop) */
+.category-modal-popup {
+    width: min(94vw, 640px) !important;
+    max-width: min(94vw, 640px) !important;
+    padding: 1.35rem 1.1rem 1.1rem !important;
+}
+
+.category-modal-popup .swal2-html-container {
+    margin: 0.35em 0 0 !important;
+    padding: 0 2px !important;
+    overflow: visible !important;
+}
+
 .category-modal-img {
+    display: block;
     width: 100%;
-    max-height: 220px;
-    object-fit: cover;
+    max-height: min(58vh, 480px);
+    height: auto;
+    object-fit: contain;
+    object-position: center;
     border-radius: 12px;
     border: 1px solid #2E2E2E;
-    margin-bottom: 12px;
+    margin: 0 auto 14px;
+    background: radial-gradient(ellipse at center, rgba(35, 35, 35, 0.98) 0%, #0d0d0d 100%);
 }
 
 .category-modal-name {

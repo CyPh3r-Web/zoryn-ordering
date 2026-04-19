@@ -49,7 +49,8 @@
                     <select id="userFilter">
                         <option value="all">All Users</option>
                         <option value="admin">Admins</option>
-                        <option value="user">Regular Users</option>
+                        <option value="cashier">Cashiers</option>
+                        <option value="waiter">Waiters</option>
                     </select>
                     <select id="statusFilter">
                         <option value="all">All Status</option>
@@ -148,11 +149,14 @@
                     <div class="form-group">
                         <label for="role">Role</label>
                         <select id="role" required>
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
+                            <option value="waiter">Waiter</option>
                             <option value="cashier">Cashier</option>
+                            <option value="admin">Admin</option>
                         </select>
                     </div>
+                    <p class="text-sm text-gray-500" style="margin-top: 12px; line-height: 1.5;">
+                        New accounts use the default password <strong>zoryn123</strong>. Ask the user to sign in and change it from the profile menu (Change Password).
+                    </p>
                 </form>
             </div>
             <div class="modal-footer">
@@ -187,9 +191,9 @@
                     <div class="form-group">
                         <label for="edit_role">Role</label>
                         <select id="edit_role" required>
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
+                            <option value="waiter">Waiter</option>
                             <option value="cashier">Cashier</option>
+                            <option value="admin">Admin</option>
                         </select>
                     </div>
                     <div class="form-group">

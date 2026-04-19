@@ -175,7 +175,18 @@ class InventoryUpdater {
                     ");
                     $update_stmt->bind_param("di", $converted_quantity, $ingredient['ingredient_id']);
                     $update_stmt->execute();
-                    
+
+                    // Audit trail — stock_out movement tied to the originating order
+                    $log_stmt = $this->conn->prepare("
+                        INSERT INTO inventory_movements
+                            (ingredient_id, movement_type, quantity, unit_cost,
+                             reference_type, reference_id, notes, movement_date)
+                        VALUES (?, 'sale', ?, 0, 'order', ?, ?, CURDATE())
+                    ");
+                    $saleNote = "Sale deduction for order #{$order_id}";
+                    $log_stmt->bind_param("idis", $ingredient['ingredient_id'], $converted_quantity, $order_id, $saleNote);
+                    $log_stmt->execute();
+
                     // Verify the update
                     $verify_stmt = $this->conn->prepare("
                         SELECT stock FROM ingredients WHERE ingredient_id = ?
@@ -195,6 +206,68 @@ class InventoryUpdater {
             // Rollback transaction on error
             $this->conn->rollback();
             error_log("Error updating inventory for order {$order_id}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Reverse ingredient deductions for one or more cart lines (cancel line or whole order).
+     * $lines: list of [ 'product_id' => int, 'quantity' => int ]
+     */
+    public function restockIngredientsForLines($lines, $order_id, $notesPrefix = 'Order cancellation restock') {
+        try {
+            $this->conn->begin_transaction();
+
+            foreach ($lines as $line) {
+                $product_id = (int) $line['product_id'];
+                $qty = (int) $line['quantity'];
+                if ($product_id <= 0 || $qty <= 0) {
+                    continue;
+                }
+
+                $stmt = $this->conn->prepare("
+                    SELECT pi.ingredient_id, pi.quantity, pi.unit, i.stock, i.ingredient_name, i.unit as stock_unit
+                    FROM product_ingredients pi
+                    JOIN ingredients i ON pi.ingredient_id = i.ingredient_id
+                    WHERE pi.product_id = ?
+                ");
+                $stmt->bind_param("i", $product_id);
+                $stmt->execute();
+                $ingredients = $stmt->get_result();
+
+                while ($ingredient = $ingredients->fetch_assoc()) {
+                    if (!$this->areUnitsCompatible($ingredient['unit'], $ingredient['stock_unit'])) {
+                        throw new Exception("Incompatible units for ingredient {$ingredient['ingredient_name']}: {$ingredient['unit']} and {$ingredient['stock_unit']}");
+                    }
+
+                    $total_quantity = $qty * $ingredient['quantity'];
+                    $converted_quantity = $this->convertQuantity($total_quantity, $ingredient['unit'], $ingredient['stock_unit']);
+
+                    $update_stmt = $this->conn->prepare("
+                        UPDATE ingredients
+                        SET stock = stock + ?
+                        WHERE ingredient_id = ?
+                    ");
+                    $update_stmt->bind_param("di", $converted_quantity, $ingredient['ingredient_id']);
+                    $update_stmt->execute();
+
+                    $log_stmt = $this->conn->prepare("
+                        INSERT INTO inventory_movements
+                            (ingredient_id, movement_type, quantity, unit_cost,
+                             reference_type, reference_id, notes, movement_date)
+                        VALUES (?, 'return_in', ?, 0, 'order', ?, ?, CURDATE())
+                    ");
+                    $note = "{$notesPrefix} for order #{$order_id}";
+                    $log_stmt->bind_param("idis", $ingredient['ingredient_id'], $converted_quantity, $order_id, $note);
+                    $log_stmt->execute();
+                }
+            }
+
+            $this->conn->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->conn->rollback();
+            error_log("Error restocking for order {$order_id}: " . $e->getMessage());
             return false;
         }
     }
@@ -283,26 +356,24 @@ class InventoryUpdater {
     }
 }
 
-// Handle AJAX requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Handle AJAX requests only when this file is the entrypoint (not when included).
+if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'update_inventory.php' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
     $inventoryUpdater = new InventoryUpdater($conn);
     
-    if ($data['action'] === 'update_stocks') {
+    if (($data['action'] ?? '') === 'update_stocks') {
         $result = $inventoryUpdater->updateInventoryForProduct($data['updates']);
         echo json_encode($result);
-    } else if ($data['action'] === 'check_stock') {
+    } else if (($data['action'] ?? '') === 'check_stock') {
         $order_id = $data['order_id'] ?? 0;
         $result = $inventoryUpdater->checkStockForOrder($order_id);
         echo json_encode($result);
-    } else if ($data['action'] === 'update_inventory') {
+    } else if (($data['action'] ?? '') === 'update_inventory') {
         $order_id = $data['order_id'] ?? 0;
         $result = $inventoryUpdater->updateInventoryForOrder($order_id);
         echo json_encode(['success' => $result]);
     } else {
         echo json_encode(['success' => false, 'error' => 'Invalid action']);
     }
-} else {
-    echo json_encode(['success' => false, 'error' => 'Invalid request method']);
 }
 ?> 

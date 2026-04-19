@@ -10,8 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $data) {
     $email = mysqli_real_escape_string($conn, $data['email']);
     $role = mysqli_real_escape_string($conn, $data['role']);
     
-    // Default password
-    $default_password = 'zoryn';
+    // Default password for accounts created by admin
+    $default_password = 'zoryn123';
     $hashed_password = password_hash($default_password, PASSWORD_DEFAULT);
     
     // Check if username or email already exists

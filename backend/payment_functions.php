@@ -374,16 +374,25 @@ function markAsPaid() {
         // Start transaction
         $conn->begin_transaction();
         
-        // Update payment status
+        // Cash counter payments: treat NULL/empty payment_type as cash (legacy rows).
         $stmt = $conn->prepare("
-            UPDATE orders 
-            SET payment_status = 'verified'
-            WHERE order_id = ? AND payment_type = 'cash'
+            UPDATE orders
+            SET payment_status = 'verified',
+                payment_type = CASE
+                    WHEN payment_type IS NULL OR payment_type = '' THEN 'cash'
+                    ELSE payment_type
+                END
+            WHERE order_id = ?
+              AND (
+                    payment_type = 'cash'
+                 OR payment_type IS NULL
+                 OR payment_type = ''
+              )
         ");
-        
+
         $stmt->bind_param("i", $order_id);
         
-        if ($stmt->execute()) {
+        if ($stmt->execute() && $stmt->affected_rows > 0) {
             // Get order details for notification
             $stmt = $conn->prepare("
                 SELECT o.customer_name, o.user_id, o.total_amount
@@ -412,7 +421,7 @@ function markAsPaid() {
                 'message' => 'Payment marked as paid successfully'
             ]);
         } else {
-            throw new Exception('Failed to update payment status');
+            throw new Exception('Cannot mark as paid: order must be cash at counter (or payment type not set), and not already verified.');
         }
     } catch (Exception $e) {
         // Rollback transaction on error

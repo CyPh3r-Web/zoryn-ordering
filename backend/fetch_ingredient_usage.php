@@ -1,5 +1,6 @@
 <?php
 require_once 'dbconn.php';
+require_once 'recipe_cost_helper.php';
 
 header('Content-Type: application/json');
 
@@ -17,10 +18,10 @@ try {
             'ingredient_id' => $row['ingredient_id'],
             'ingredient_name' => $row['ingredient_name'],
             'category_name' => $row['category_name'],
-            'current_stock' => floatval($row['stock']), // Convert to float
+            'current_stock' => floatval($row['stock']),
             'unit' => $row['unit'],
             'total_used' => 0,
-            'image_path' => $row['image_path'] // Add image path
+            'image_path' => $row['image_path']
         ];
     }
 
@@ -34,7 +35,7 @@ try {
     // Calculate ingredient usage for each order
     while ($order = $orders_result->fetch_assoc()) {
         $product_id = $order['product_id'];
-        $quantity = intval($order['quantity']); // Convert to integer
+        $quantity = intval($order['quantity']);
 
         // Get ingredients used in this product
         $product_ingredients_query = "SELECT ingredient_id, quantity, unit 
@@ -47,14 +48,13 @@ try {
 
         while ($ingredient = $product_ingredients->fetch_assoc()) {
             $ingredient_id = $ingredient['ingredient_id'];
-            $ingredient_quantity = floatval($ingredient['quantity']); // Convert to float
+            $ingredient_quantity = floatval($ingredient['quantity']);
             $ingredient_unit = $ingredient['unit'];
 
-            // Convert units if necessary (ml to liters, g to kg)
-            if ($ingredient_unit === 'ml') {
-                $ingredient_quantity = $ingredient_quantity / 1000; // Convert to liters
-            } elseif ($ingredient_unit === 'g') {
-                $ingredient_quantity = $ingredient_quantity / 1000; // Convert to kg
+            // Convert from product_ingredients unit to the ingredient's stock unit
+            if (isset($ingredients[$ingredient_id])) {
+                $stock_unit = $ingredients[$ingredient_id]['unit'];
+                $ingredient_quantity = convert_ingredient_quantity_to_stock_unit($ingredient_quantity, $ingredient_unit, $stock_unit);
             }
 
             // Multiply by order quantity

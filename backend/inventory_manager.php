@@ -15,19 +15,39 @@ class InventoryManager {
         $this->conn = $conn;
     }
 
-    // Get all ingredients with their current stock
+    // Helper: convert quantity from one unit to another (same measurement family)
+    private function convertToStockUnit($quantity, $fromUnit, $toUnit) {
+        $from = strtolower(trim($fromUnit));
+        $to   = strtolower(trim($toUnit));
+        if ($from === $to) return $quantity;
+
+        $weightToG = ['kg' => 1000, 'g' => 1, 'mg' => 0.001, 'oz' => 28.3495, 'lb' => 453.592];
+        $volToMl   = ['liters' => 1000, 'l' => 1000, 'ml' => 1, 'cup' => 236.588, 'tbsp' => 14.7868, 'tsp' => 4.92892, 'fl oz' => 29.5735];
+        $countUnits = ['pcs', 'pieces', 'units'];
+
+        if (isset($weightToG[$from]) && isset($weightToG[$to])) {
+            return $quantity * $weightToG[$from] / $weightToG[$to];
+        }
+        if (isset($volToMl[$from]) && isset($volToMl[$to])) {
+            return $quantity * $volToMl[$from] / $volToMl[$to];
+        }
+        if (in_array($from, $countUnits) && in_array($to, $countUnits)) {
+            return $quantity;
+        }
+        return $quantity;
+    }
+
+    // Get all ingredients with their current stock and total used
     public function getAllIngredients() {
         try {
             // First check if the ingredient_categories table exists
             $checkTable = $this->conn->query("SHOW TABLES LIKE 'ingredient_categories'");
             if ($checkTable->num_rows > 0) {
-                // If table exists, use the join query
                 $query = "SELECT i.*, c.category_name 
                          FROM ingredients i 
                          JOIN ingredient_categories c ON i.category_id = c.category_id 
                          ORDER BY i.category_id, i.ingredient_name";
             } else {
-                // If table doesn't exist, use a simple query with hardcoded category names
                 $query = "SELECT i.*, 
                          CASE i.category_id
                              WHEN 1 THEN 'Coffee'
@@ -49,10 +69,39 @@ class InventoryManager {
             
             $ingredients = array();
             while ($row = $result->fetch_assoc()) {
-                $ingredients[] = $row;
+                $row['total_used'] = 0;
+                $ingredients[$row['ingredient_id']] = $row;
+            }
+
+            // Calculate total used from completed orders
+            $orders_query = "SELECT o.order_id, oi.product_id, oi.quantity 
+                            FROM orders o 
+                            JOIN order_items oi ON o.order_id = oi.order_id 
+                            WHERE o.order_status = 'completed'";
+            $orders_result = $this->conn->query($orders_query);
+
+            while ($order = $orders_result->fetch_assoc()) {
+                $product_id = $order['product_id'];
+                $order_qty = intval($order['quantity']);
+
+                $pi_query = "SELECT ingredient_id, quantity, unit FROM product_ingredients WHERE product_id = ?";
+                $stmt = $this->conn->prepare($pi_query);
+                $stmt->bind_param("i", $product_id);
+                $stmt->execute();
+                $pi_result = $stmt->get_result();
+
+                while ($pi = $pi_result->fetch_assoc()) {
+                    $ing_id = $pi['ingredient_id'];
+                    if (isset($ingredients[$ing_id])) {
+                        $qty = floatval($pi['quantity']);
+                        $stock_unit = $ingredients[$ing_id]['unit'];
+                        $qty = $this->convertToStockUnit($qty, $pi['unit'], $stock_unit);
+                        $ingredients[$ing_id]['total_used'] += $qty * $order_qty;
+                    }
+                }
             }
             
-            return $ingredients;
+            return array_values($ingredients);
         } catch (Exception $e) {
             throw new Exception("Failed to get ingredients: " . $e->getMessage());
         }
@@ -167,7 +216,8 @@ class InventoryManager {
 }
 
 // Handle AJAX requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Only handle direct requests to this file (not when included by order_functions / update_inventory).
+if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'inventory_manager.php' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $action = $_POST['action'] ?? '';
         $inventoryManager = new InventoryManager($conn);
@@ -197,7 +247,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
-} else {
-    echo json_encode(['success' => false, 'error' => 'Invalid request method']);
 }
 ?>

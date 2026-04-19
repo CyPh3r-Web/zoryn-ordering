@@ -97,19 +97,20 @@ if (!isset($_SESSION['user_id'])) {
         .order-items-list::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 3px; }
 
         .order-item-card {
-            background: #121212;
-            border: 1px solid #2E2E2E;
-            border-radius: 16px;
-            padding: 20px;
-            min-width: 200px;
+            background: linear-gradient(165deg, #161616 0%, #121212 100%);
+            border: 1px solid #333;
+            border-radius: 18px;
+            padding: 22px 18px 20px;
+            min-width: 240px;
             flex: 0 0 auto;
             text-align: center;
             transition: all 0.3s;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.35);
         }
-        .order-item-card:hover { transform: translateY(-4px); border-color: rgba(212,175,55,0.2); box-shadow: 0 8px 20px rgba(212,175,55,0.08); }
+        .order-item-card:hover { transform: translateY(-4px); border-color: rgba(212,175,55,0.35); box-shadow: 0 12px 28px rgba(212,175,55,0.12); }
 
-        .order-item-image { width: 120px; height: 140px; object-fit: contain; margin: 0 auto 12px; display: block; }
-        .order-item-name { font-weight: 600; color: #D4AF37; margin-bottom: 12px; font-size: 0.9rem; }
+        .order-item-image { width: 168px; height: 196px; object-fit: contain; margin: 0 auto 14px; display: block; }
+        .order-item-name { font-weight: 600; color: #D4AF37; margin-bottom: 12px; font-size: 0.95rem; line-height: 1.35; }
 
         .order-quantity-controls { display: flex; justify-content: center; align-items: center; gap: 10px; }
         .order-qty-btn {
@@ -162,9 +163,9 @@ if (!isset($_SESSION['user_id'])) {
         .add-order-btn-container {
             background: transparent;
             border: 2px dashed rgba(212,175,55,0.3);
-            border-radius: 16px;
+            border-radius: 18px;
             padding: 20px;
-            min-width: 200px;
+            min-width: 240px;
             flex: 0 0 auto;
             text-align: center;
             cursor: pointer;
@@ -172,7 +173,7 @@ if (!isset($_SESSION['user_id'])) {
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 280px;
+            min-height: 360px;
             transition: all 0.3s;
         }
         .add-order-btn-container:hover { background: rgba(212,175,55,0.05); border-color: #D4AF37; }
@@ -194,24 +195,42 @@ if (!isset($_SESSION['user_id'])) {
         .add-order-btn:hover { transform: translateY(-2px); }
 
         /* Modal */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1000; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82); backdrop-filter: blur(6px); z-index: 1000; align-items: center; justify-content: center; padding: 12px; }
         .modal-content {
             background: #1F1F1F;
-            border: 1px solid #2E2E2E;
-            margin: 5% auto;
-            padding: 24px;
-            border-radius: 16px;
-            width: 85%;
-            max-width: 900px;
-            max-height: 80vh;
-            overflow-y: auto;
+            border: 1px solid #3a3a3a;
+            margin: 0 auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 96%;
+            max-width: 1280px;
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.55);
         }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .modal-header h2 { color: #D4AF37; font-size: 1.2rem; }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            padding: 22px 26px 16px;
+            border-bottom: 1px solid #2E2E2E;
+        }
+        .modal-header h2 { color: #D4AF37; font-size: 1.35rem; font-weight: 600; }
+        .modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 18px 26px 22px;
+            -webkit-overflow-scrolling: touch;
+        }
         .close-modal { font-size: 24px; cursor: pointer; color: #888; transition: color 0.2s; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
         .close-modal:hover { color: #fff; background: rgba(255,255,255,0.05); }
 
-        .category-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 8px; }
+        .category-tabs { display: flex; gap: 10px; margin-bottom: 18px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
         .category-tab {
             padding: 8px 16px;
             background: #121212;
@@ -227,35 +246,77 @@ if (!isset($_SESSION['user_id'])) {
         .category-tab.active { background: linear-gradient(135deg, #D4AF37, #B8921E); color: #0D0D0D; border-color: transparent; font-weight: 600; }
         .category-tab:hover:not(.active) { border-color: #D4AF37; color: #D4AF37; }
 
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
         .product-card {
-            background: #121212;
-            border: 1px solid #2E2E2E;
-            border-radius: 16px;
-            padding: 16px;
+            background: linear-gradient(165deg, #181818 0%, #101010 100%);
+            border: 1px solid #333;
+            border-radius: 18px;
+            padding: 18px 14px 16px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+            position: relative;
         }
-        .product-card:hover { transform: translateY(-4px); border-color: rgba(212,175,55,0.2); }
-        .product-card.selected { border: 2px solid #D4AF37; box-shadow: 0 0 16px rgba(212,175,55,0.15); }
-        .product-card img { width: 100px; height: 120px; object-fit: contain; margin-bottom: 8px; }
-        .product-card h3 { font-size: 13px; color: #D4AF37; margin-bottom: 4px; }
-        .product-card .price { font-weight: 700; color: #F5D76E; font-size: 14px; }
+        .product-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 18px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: inset 0 0 0 1px rgba(212,175,55,0.25);
+            transition: opacity 0.25s;
+        }
+        .product-card:hover { transform: translateY(-5px); border-color: rgba(212,175,55,0.45); box-shadow: 0 14px 32px rgba(0,0,0,0.45); }
+        .product-card:hover::after { opacity: 1; }
+        .product-card.selected {
+            border: 2px solid #D4AF37;
+            box-shadow: 0 0 0 1px rgba(212,175,55,0.2), 0 12px 36px rgba(212,175,55,0.18);
+            background: linear-gradient(165deg, #1e1a10 0%, #141208 100%);
+        }
+        .product-card .product-card-img-wrap {
+            width: 100%;
+            min-height: 168px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            background: radial-gradient(ellipse at center, rgba(212,175,55,0.08) 0%, transparent 70%);
+            border-radius: 14px;
+        }
+        .product-card img { width: 148px; height: 172px; max-width: 100%; object-fit: contain; display: block; }
+        .product-card h3 { font-size: 14px; color: #E8C84A; margin-bottom: 6px; line-height: 1.35; font-weight: 600; }
+        .product-card .price { font-weight: 700; color: #F5D76E; font-size: 15px; letter-spacing: 0.02em; }
 
-        .modal-footer { display: flex; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #2E2E2E; }
+        .modal-footer {
+            flex-shrink: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px 22px 22px;
+            margin: 0 18px 18px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(31,31,31,0.92) 0%, #1a1a1a 100%);
+            border: 1px solid rgba(212,175,55,0.22);
+            box-shadow: 0 -12px 40px rgba(0,0,0,0.55), 0 8px 28px rgba(0,0,0,0.35);
+        }
         .confirm-order-btn {
-            background: linear-gradient(135deg, #D4AF37, #B8921E);
+            background: linear-gradient(135deg, #E8C84A, #B8921E);
             color: #0D0D0D;
             border: none;
-            padding: 10px 24px;
-            border-radius: 12px;
-            font-weight: 600;
+            padding: 14px 36px;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 15px;
             cursor: pointer;
             transition: all 0.3s;
             font-family: 'Poppins', sans-serif;
+            box-shadow: 0 6px 20px rgba(212,175,55,0.35);
+            width: 100%;
+            max-width: 420px;
         }
-        .confirm-order-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(212,175,55,0.3); }
+        .confirm-order-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(212,175,55,0.45); }
 
         /* SweetAlert dark theme */
         .swal2-popup { font-family: 'Poppins', sans-serif !important; background: #1F1F1F !important; border: 1px solid #2E2E2E !important; border-radius: 16px !important; color: #fff !important; }
@@ -280,6 +341,11 @@ if (!isset($_SESSION['user_id'])) {
 
         @media (max-width: 768px) {
             .order-customer-info { flex-direction: column; }
+            .modal-content { width: 100%; max-height: 94vh; border-radius: 16px; }
+            .products-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+            .product-card img { width: 120px; height: 140px; }
+            .order-item-image { width: 140px; height: 164px; }
+            .order-item-card { min-width: 200px; }
         }
     </style>
 </head>
@@ -288,20 +354,39 @@ if (!isset($_SESSION['user_id'])) {
 
     <div class="main-content" style="padding: 24px;">
         <div class="order-details-container">
+            <?php
+                $zornStaffRole = $_SESSION['role'] ?? null;
+                $zornIsStaff   = in_array($zornStaffRole, ['cashier', 'waiter'], true);
+            ?>
             <div class="order-customer-info">
                 <div class="order-info-field">
                     <label>Customer Name</label>
-                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier'): ?>
+                    <?php if ($zornIsStaff): ?>
                         <div class="order-value"><input type="text" id="customer-name" value="" placeholder="Enter customer name"></div>
                     <?php else: ?>
                         <div class="order-value" id="customer-name"><?= isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Guest' ?></div>
                     <?php endif; ?>
                 </div>
-                <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'cashier'): ?>
-                <div class="order-info-field">
-                    <label>Order Type</label>
-                    <div class="order-value">Account-Order</div>
-                </div>
+                <?php if ($zornIsStaff): ?>
+                    <div class="order-info-field">
+                        <label>Order Type</label>
+                        <div class="order-value">
+                            <select id="order-type">
+                                <option value="dine-in">Dine-in</option>
+                                <option value="take-out">Take-out</option>
+                                <option value="walk-in">Walk-in</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="order-info-field" id="table-number-field">
+                        <label>Table #</label>
+                        <div class="order-value"><input type="text" id="table-number" placeholder="e.g. T-05" maxlength="20"></div>
+                    </div>
+                <?php else: ?>
+                    <div class="order-info-field">
+                        <label>Order Type</label>
+                        <div class="order-value">Account-Order</div>
+                    </div>
                 <?php endif; ?>
             </div>
 
@@ -324,7 +409,7 @@ if (!isset($_SESSION['user_id'])) {
     <div id="productsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2><i class="fas fa-mug-hot" style="margin-right:8px;"></i>Select Products</h2>
+                <h2><i class="fas fa-basket-shopping" style="margin-right:8px;"></i>Select Products</h2>
                 <span class="close-modal">&times;</span>
             </div>
             <div class="modal-body">
@@ -338,7 +423,8 @@ if (!isset($_SESSION['user_id'])) {
     </div>
 
     <script>
-        const IS_CASHIER = <?= (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier') ? 'true' : 'false' ?>;
+        const IS_CASHIER = <?= $zornIsStaff ? 'true' : 'false' ?>;
+        const STAFF_ROLE = <?= json_encode($zornStaffRole ?? '') ?>;
         const USER_ID = '<?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : '' ?>';
         let selectedProducts = new Set();
         let currentCategory = null;
@@ -347,7 +433,7 @@ if (!isset($_SESSION['user_id'])) {
         function money(n) { return parseFloat(n).toFixed(2); }
 
         function showProductsModal() {
-            document.getElementById('productsModal').style.display = 'block';
+            document.getElementById('productsModal').style.display = 'flex';
             loadCategories();
         }
 
@@ -380,7 +466,7 @@ if (!isset($_SESSION['user_id'])) {
                     const card = document.createElement('div');
                     card.className = 'product-card'; card.dataset.productId = p.product_id; card.dataset.categoryId = p.category_id;
                     const imgSrc = p.image_path || '../assets/zoryn/zoryn_logo.jpg';
-                    card.innerHTML = `<img src="${imgSrc}" alt="${p.product_name}" onerror="this.src='../assets/zoryn/zoryn_logo.jpg';"><h3>${p.product_name}</h3><div class="price">₱${money(p.price)}</div>`;
+                    card.innerHTML = `<div class="product-card-img-wrap"><img src="${imgSrc}" alt="${p.product_name}" onerror="this.src='../assets/zoryn/zoryn_logo.jpg';"></div><h3>${p.product_name}</h3><div class="price">₱${money(p.price)}</div>`;
                     card.onclick = () => toggleProductSelection(p.product_id);
                     grid.appendChild(card);
                 });
@@ -512,18 +598,28 @@ if (!isset($_SESSION['user_id'])) {
             return (el.value !== undefined ? el.value : el.textContent).trim() || 'Guest';
         }
 
-        function submitOrder(customerName, orderType, paymentType, proofFile) {
+        function submitOrder(customerName, orderType, paymentType, proofFile, tableNumber) {
             const fd = new FormData();
             fd.append('action', 'create_order_with_payment');
             fd.append('customer_name', customerName);
             fd.append('order_type', orderType);
             fd.append('user_id', USER_ID);
             fd.append('payment_type', paymentType);
+            if (tableNumber) fd.append('table_number', tableNumber);
             if (proofFile) fd.append('proof_of_payment', proofFile);
             return fetch('../backend/order_manager.php', { method: 'POST', body: fd }).then(r => r.json());
         }
 
-        function printReceipt(orderId, customerName, items, total) {
+        function getOrderType() {
+            const el = document.getElementById('order-type');
+            return el ? el.value : 'account-order';
+        }
+        function getTableNumber() {
+            const el = document.getElementById('table-number');
+            return el ? el.value.trim() : '';
+        }
+
+        function printReceipt(orderId, customerName, items, total, orderType, tableNumber) {
             const now = new Date();
             const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
             const timeStr = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
@@ -545,7 +641,7 @@ if (!isset($_SESSION['user_id'])) {
                 vatHtml += `<div class="receipt-vat-row"><span>VAT-Exempt Sales</span><span>₱${money(vat.vatExemptSales)}</span></div>`;
             }
 
-            const logoUrl = window.location.origin + '/zoryn-ordering/assets/zoryn/zoryn_logo.jpg';
+            const logoUrl = new URL('../assets/zoryn/zoryn_logo.jpg', window.location.href).href;
 
             const receiptHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt #${orderId}</title>
 <style>
@@ -584,7 +680,7 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
     <div class="receipt-meta"><span>Date: ${dateStr}</span><span>${timeStr}</span></div>
     <div class="receipt-meta"><span>Order #${orderId}</span></div>
     <div class="receipt-meta"><span>Customer: ${customerName}</span></div>
-    <div class="receipt-meta"><span>Type: Walk-in</span></div>
+    <div class="receipt-meta"><span>Type: ${(orderType || 'walk-in').toString().replace(/\b\w/g, c => c.toUpperCase())}</span>${tableNumber ? `<span>Table: ${tableNumber}</span>` : ''}</div>
     <hr class="receipt-divider">
     <table class="receipt-table">
         <thead><tr><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Total</th></tr></thead>
@@ -610,6 +706,13 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
 
         function cashierConfirmOrder() {
             const customerName = getCustomerName();
+            const orderType = getOrderType();
+            const tableNumber = getTableNumber();
+
+            if (orderType === 'dine-in' && !tableNumber) {
+                Swal.fire({ title: 'Table # Required', text: 'Please enter the table number for dine-in orders.', icon: 'warning', confirmButtonColor: '#D4AF37' });
+                return;
+            }
             if (!lastOrderData || !lastOrderData.items || lastOrderData.items.length === 0) {
                 Swal.fire({ title: 'No Items', text: 'Add items to the order first.', icon: 'warning', confirmButtonColor: '#D4AF37' });
                 return;
@@ -631,7 +734,7 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
                 cancelButtonColor: '#2A2A2A'
             }).then(result => {
                 if (!result.isConfirmed) return;
-                submitOrder(customerName, 'walk-in', 'cash', null).then(data => {
+                submitOrder(customerName, orderType, 'cash', null, tableNumber).then(data => {
                     if (!data.success) {
                         Swal.fire({ title: 'Error', text: data.message || data.error || 'Order failed', icon: 'error', confirmButtonColor: '#D4AF37' });
                         return;
@@ -651,13 +754,15 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
                         allowOutsideClick: false
                     }).then(choice => {
                         if (choice.isConfirmed) {
-                            printReceipt(orderId, customerName, items, total);
+                            printReceipt(orderId, customerName, items, total, orderType, tableNumber);
                         }
                         fetch('../backend/order_manager.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=clear_order' })
                         .then(() => {
                             loadOrderDetails();
                             const nameInput = document.getElementById('customer-name');
                             if (nameInput && nameInput.tagName === 'INPUT') nameInput.value = '';
+                            const tableInput = document.getElementById('table-number');
+                            if (tableInput) tableInput.value = '';
                         });
                     });
                 }).catch(() => Swal.fire({ title: 'Error', text: 'Order processing error', icon: 'error', confirmButtonColor: '#D4AF37' }));
@@ -698,7 +803,18 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
             });
         }
 
-        document.addEventListener('DOMContentLoaded', loadOrderDetails);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOrderDetails();
+            const typeSel = document.getElementById('order-type');
+            const tableField = document.getElementById('table-number-field');
+            if (typeSel && tableField) {
+                const syncTableVisibility = () => {
+                    tableField.style.display = typeSel.value === 'dine-in' ? '' : 'none';
+                };
+                typeSel.addEventListener('change', syncTableVisibility);
+                syncTableVisibility();
+            }
+        });
 
         document.querySelector('.order-confirm-btn').addEventListener('click', function() {
             IS_CASHIER ? cashierConfirmOrder() : userConfirmOrder();

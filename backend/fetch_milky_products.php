@@ -1,5 +1,6 @@
 <?php
 require_once 'dbconn.php';
+require_once 'image_path_helper.php';
 
 header('Content-Type: application/json');
 
@@ -38,11 +39,8 @@ try {
         
         $products = array();
         while ($row = $result->fetch_assoc()) {
-            // Ensure the image path is properly formatted
             if (!empty($row['image_path'])) {
-                // Remove any existing path and just use the filename
-                $filename = basename($row['image_path']);
-                $row['image_path'] = '../assets/images/products/' . $filename;
+                $row['image_path'] = image_path_for_users_folder($row['image_path']);
             }
             $products[] = $row;
         }

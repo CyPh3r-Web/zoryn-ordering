@@ -42,8 +42,28 @@ if (!isset($_SESSION['admin_id'])) {
             font-weight: 600; display: inline-flex; align-items: center; gap: 4px;
         }
         .status-badge.completed { background: rgba(0,184,148,0.15); color: #00B894; }
+        .status-badge.cancelled {
+            background: rgba(220,53,69,0.15); color: #ff8b92;
+        }
         .status-badge i { font-size: 10px; }
         .action-buttons { display: flex; align-items: center; gap: 8px; }
+
+        /* Order-type badges */
+        .type-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 9999px;
+            font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+            text-transform: uppercase; white-space: nowrap;
+        }
+        .type-badge i { font-size: 10px; }
+        .type-badge.dine-in   { background: rgba(212,175,55,0.14); color: #f4d26b; border: 1px solid rgba(212,175,55,0.28); }
+        .type-badge.take-out  { background: rgba(116,185,255,0.15); color: #8fcbff; border: 1px solid rgba(116,185,255,0.28); }
+        .type-badge.walk-in   { background: rgba(0,184,148,0.14); color: #78ebca; border: 1px solid rgba(0,184,148,0.28); }
+        .type-badge.account-order { background: rgba(162,155,254,0.16); color: #c5bdff; border: 1px solid rgba(162,155,254,0.28); }
+        .type-badge .table-tag {
+            margin-left: 6px; padding: 1px 6px; border-radius: 6px;
+            background: rgba(0,0,0,0.35); color: #fff; font-size: 10px; letter-spacing: 0.5px;
+        }
 
         .swal-modern-product-popup {
             background:
@@ -144,6 +164,11 @@ if (!isset($_SESSION['admin_id'])) {
             color: #78ebca;
         }
 
+        .product-modal-status.cancelled {
+            background: rgba(220, 53, 69, 0.18);
+            color: #ff8b92;
+        }
+
         .product-info-section {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -217,6 +242,28 @@ if (!isset($_SESSION['admin_id'])) {
             border-radius: 16px;
             background: rgba(255, 255, 255, 0.025);
             border: 1px solid rgba(212, 175, 55, 0.1);
+            position: relative;
+        }
+
+        .order-item-remove-btn {
+            flex-shrink: 0;
+            align-self: flex-start;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid rgba(220, 53, 69, 0.35);
+            background: rgba(220, 53, 69, 0.12);
+            color: #ff8b92;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .order-item-remove-btn:hover {
+            background: rgba(220, 53, 69, 0.22);
+            transform: translateY(-1px);
         }
 
         .order-item-image {
@@ -294,6 +341,42 @@ if (!isset($_SESSION['admin_id'])) {
             font-size: 13px;
         }
 
+        .product-section-card .proof-of-payment { margin-top: 16px; text-align: center; }
+        .product-section-card .proof-of-payment h4 {
+            margin: 0 0 12px; color: #9d9d9d; font-size: 11px; font-weight: 600;
+            letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .product-section-card .proof-image {
+            max-width: 320px; margin: 0 auto; border: 1px solid rgba(212,175,55,0.15);
+            border-radius: 12px; overflow: hidden; cursor: pointer;
+            transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+        .product-section-card .proof-image:hover { transform: scale(1.02); border-color: rgba(212,175,55,0.4); }
+        .product-section-card .proof-image img { width: 100%; height: auto; display: block; }
+
+        .mark-paid-btn {
+            background: linear-gradient(135deg, #F4D26B, #C99B2A); color: #0D0D0D; border: none;
+            padding: 8px 14px; border-radius: 9px; cursor: pointer; display: inline-flex;
+            align-items: center; gap: 6px; font-size: 12px; font-weight: 700;
+            margin-top: 10px; font-family: 'Poppins', sans-serif; transition: all 0.2s;
+        }
+        .mark-paid-btn:hover { background: linear-gradient(135deg, #FFDF7D, #D3A533); transform: translateY(-1px); }
+
+        .verify-btn {
+            margin-top: 15px; padding: 10px 20px;
+            background: linear-gradient(135deg, #F4D26B, #C99B2A); color: #0D0D0D;
+            border: none; border-radius: 10px; cursor: pointer; font-weight: 700;
+            transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px;
+            font-family: 'Poppins', sans-serif;
+        }
+        .verify-btn:hover { background: linear-gradient(135deg, #FFDF7D, #D3A533); transform: translateY(-2px); }
+
+        .text-success { color: #78ebca !important; }
+        .text-warning { color: #FDCB6E !important; }
+
+        .payment-proof-modal { max-width: 90vw !important; max-height: 90vh !important; }
+        .payment-proof-modal .swal2-image { max-width: 100%; max-height: 80vh; object-fit: contain; }
+
         @media (max-width: 680px) {
             .product-modal-header {
                 flex-direction: column;
@@ -320,6 +403,13 @@ if (!isset($_SESSION['admin_id'])) {
                 <h1><i class="fas fa-receipt"></i>Orders Management</h1>
                 <div class="filter-bar">
                     <input type="date" id="orderDateFilter" placeholder="Filter by date">
+                    <select id="orderTypeFilter" class="filter-select">
+                        <option value="">All Order Types</option>
+                        <option value="dine-in">Dine-in</option>
+                        <option value="take-out">Take-out</option>
+                        <option value="walk-in">Walk-in</option>
+                        <option value="account-order">Account Order</option>
+                    </select>
                 </div>
             </div>
             
@@ -344,23 +434,256 @@ if (!isset($_SESSION['admin_id'])) {
     </div>
     
     <script>
+        function canEditOrderLines(orderStatus) {
+            const s = (orderStatus || '').toLowerCase();
+            return s === 'pending' || s === 'preparing';
+        }
+
+        window.removeOrderLine = function(orderId, orderItemId) {
+            Swal.fire({
+                title: 'Remove this item?',
+                text: 'It will be taken off the order and stock will be restored.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#2E2E2E',
+                confirmButtonText: 'Yes, remove it'
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                fetch('../backend/order_functions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=remove_order_item&order_id=${orderId}&order_item_id=${orderItemId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.close();
+                        if (typeof window.loadOrders === 'function') window.loadOrders();
+                        Swal.fire({
+                            title: data.order_empty ? 'Order cancelled' : 'Updated',
+                            text: data.message || 'Item removed',
+                            icon: 'success',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: data.message || 'Could not remove item',
+                            icon: 'error',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    }
+                })
+                .catch(() => {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'Request failed',
+                        icon: 'error',
+                        confirmButtonColor: '#D4AF37'
+                    });
+                });
+            });
+        };
+
+        window.showFullImage = function(src) {
+            Swal.fire({
+                imageUrl: src,
+                imageAlt: 'Proof of Payment',
+                width: 'auto',
+                padding: '1em',
+                showConfirmButton: false,
+                showCloseButton: true,
+                customClass: { popup: 'payment-proof-modal' }
+            });
+        };
+
+        window.verifyPayment = function(orderId) {
+            Swal.fire({
+                title: 'Verify Payment',
+                text: 'Are you sure you want to verify this payment?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#D4AF37',
+                cancelButtonColor: '#2E2E2E',
+                confirmButtonText: 'Yes, verify it!'
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                fetch('../backend/payment_functions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=verify_payment&order_id=${orderId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Verified!',
+                            text: data.message,
+                            icon: 'success',
+                            confirmButtonColor: '#D4AF37'
+                        }).then(() => {
+                            if (typeof window.loadOrders === 'function') window.loadOrders();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: data.message || 'Failed to verify payment',
+                            icon: 'error',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    }
+                })
+                .catch(() => {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'An error occurred while verifying payment',
+                        icon: 'error',
+                        confirmButtonColor: '#D4AF37'
+                    });
+                });
+            });
+        };
+
+        window.markAsPaid = function(orderId, buttonElement) {
+            Swal.fire({
+                title: 'Mark as Paid',
+                text: 'Are you sure you want to mark this order as paid?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#D4AF37',
+                cancelButtonColor: '#2E2E2E',
+                confirmButtonText: 'Yes, mark as paid!'
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                fetch('../backend/payment_functions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=mark_as_paid&order_id=${orderId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (buttonElement && buttonElement.parentNode) {
+                            buttonElement.parentNode.removeChild(buttonElement);
+                        }
+                        Swal.fire({
+                            title: 'Success!',
+                            text: 'Order has been marked as paid',
+                            icon: 'success',
+                            confirmButtonColor: '#D4AF37'
+                        }).then(() => {
+                            if (typeof window.loadOrders === 'function') window.loadOrders();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: data.message || 'Failed to mark order as paid',
+                            icon: 'error',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    }
+                })
+                .catch(() => {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'An error occurred while marking the order as paid',
+                        icon: 'error',
+                        confirmButtonColor: '#D4AF37'
+                    });
+                });
+            });
+        };
+
+        window.cancelWholeOrder = function(orderId) {
+            Swal.fire({
+                title: 'Cancel this order?',
+                text: 'The full order will be marked cancelled and ingredients will be restocked.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#2E2E2E',
+                confirmButtonText: 'Yes, cancel order'
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                fetch('../backend/order_functions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=cancel_order&order_id=${orderId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.close();
+                        if (typeof window.loadOrders === 'function') window.loadOrders();
+                        Swal.fire({
+                            title: 'Cancelled',
+                            text: data.message || 'Order cancelled',
+                            icon: 'success',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: data.message || 'Could not cancel order',
+                            icon: 'error',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    }
+                })
+                .catch(() => {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'Request failed',
+                        icon: 'error',
+                        confirmButtonColor: '#D4AF37'
+                    });
+                });
+            });
+        };
+
+        // Map raw order_type to label + icon for consistent rendering.
+        function orderTypeMeta(type) {
+            const t = (type || '').toLowerCase();
+            const map = {
+                'dine-in':       { label: 'Dine-in',       icon: 'fa-utensils' },
+                'take-out':      { label: 'Take-out',      icon: 'fa-bag-shopping' },
+                'walk-in':       { label: 'Walk-in',       icon: 'fa-person-walking' },
+                'account-order': { label: 'Account Order', icon: 'fa-user-circle' }
+            };
+            const meta = map[t] || { label: type || '—', icon: 'fa-tag' };
+            meta.cls = t || 'walk-in';
+            return meta;
+        }
+        function renderTypeBadge(type, tableNumber) {
+            const m = orderTypeMeta(type);
+            const tableTag = (tableNumber && String(tableNumber).trim() !== '')
+                ? `<span class="table-tag">T# ${tableNumber}</span>` : '';
+            return `<span class="type-badge ${m.cls}"><i class="fas ${m.icon}"></i>${m.label}${tableTag}</span>`;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Load initial data
             loadOrders();
-            
-            // Date filter handler
-            document.getElementById('orderDateFilter').addEventListener('change', function() {
-                loadOrders(this.value);
-            });
-            
+
+            // Filter handlers
+            document.getElementById('orderDateFilter').addEventListener('change', loadOrders);
+            document.getElementById('orderTypeFilter').addEventListener('change', loadOrders);
+
             // Function to load orders
-            function loadOrders(dateFilter = null) {
+            function loadOrders() {
+                const dateFilter = document.getElementById('orderDateFilter').value;
+                const typeFilter = document.getElementById('orderTypeFilter').value;
+                const params = new URLSearchParams({ action: 'get_orders' });
+                if (dateFilter) params.set('date', dateFilter);
+                if (typeFilter) params.set('order_type', typeFilter);
+
                 fetch('../backend/order_functions.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `action=get_orders${dateFilter ? '&date=' + dateFilter : ''}`
+                    body: params.toString()
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -375,14 +698,19 @@ if (!isset($_SESSION['admin_id'])) {
                             row.innerHTML = `
                                 <td>${order.customer_name}</td>
                                 <td>${new Date(order.created_at).toLocaleString()}</td>
-                                <td>${order.order_type}</td>
+                                <td>${renderTypeBadge(order.order_type, order.table_number)}</td>
                                 <td>₱${parseFloat(order.total_amount).toFixed(2)}</td>
                                 <td class="action-buttons">
                                     <button class="action-btn view" data-order-id="${order.order_id}" data-action="view" title="View Order Details">
                                         <i class="fas fa-eye"></i>
                                         <span>View Details</span>
                                     </button>
-                                    ${order.order_status === 'pending' ? 
+                                    ${order.order_status === 'cancelled' ?
+                                        `<span class="status-badge cancelled">
+                                            <i class="fas fa-ban"></i>
+                                            <span>Cancelled</span>
+                                        </span>` :
+                                        order.order_status === 'pending' ?
                                         `<button class="status-btn preparing" data-order-id="${order.order_id}" title="Start Preparing Order">
                                             <i class="fas fa-utensils"></i>
                                             <span>Prepare</span>
@@ -415,6 +743,7 @@ if (!isset($_SESSION['admin_id'])) {
                     console.error('Error loading orders:', error);
                 });
             }
+            window.loadOrders = loadOrders;
             
             // Function to view order details
             function viewOrderDetails(orderId) {
@@ -434,7 +763,9 @@ if (!isset($_SESSION['admin_id'])) {
                             ? 'fa-clock'
                             : order.order_status === 'preparing'
                                 ? 'fa-utensils'
-                                : 'fa-check-circle';
+                                : order.order_status === 'cancelled'
+                                    ? 'fa-ban'
+                                    : 'fa-check-circle';
                         const itemsHtml = order.items && order.items.length > 0
                             ? order.items.map(item => `
                                 <div class="order-item-card">
@@ -449,9 +780,71 @@ if (!isset($_SESSION['admin_id'])) {
                                             <span class="order-item-pill">Subtotal: ₱${parseFloat(item.price * item.quantity).toFixed(2)}</span>
                                         </div>
                                     </div>
+                                    ${canEditOrderLines(order.order_status) ? `
+                                    <button type="button" class="order-item-remove-btn" onclick="removeOrderLine(${order.order_id}, ${item.order_item_id})" title="Remove this line">
+                                        <i class="fas fa-times"></i>
+                                    </button>` : ''}
                                 </div>
                             `).join('')
                             : '<span class="view-empty-note">No order items found.</span>';
+
+                        const paymentTypeRaw = (order.payment_type || '').trim();
+                        const pt = paymentTypeRaw.toLowerCase() || 'cash';
+                        const displayTypeLabel = paymentTypeRaw
+                            ? paymentTypeRaw.charAt(0).toUpperCase() + paymentTypeRaw.slice(1)
+                            : 'Cash';
+                        const payStatusLabel = order.payment_status
+                            ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)
+                            : 'Pending';
+                        const payStatusCss = order.payment_status === 'verified' ? 'text-success' : 'text-warning';
+                        const canMarkPayment = order.order_status !== 'cancelled' && order.payment_status !== 'verified';
+
+                        const cashAction = canMarkPayment && (pt === 'cash' || !paymentTypeRaw) ? `
+                            <div class="proof-of-payment">
+                                <button type="button" class="mark-paid-btn" onclick="markAsPaid(${order.order_id}, this)">
+                                    <i class="fas fa-money-bill-wave"></i> Mark as Paid
+                                </button>
+                            </div>` : '';
+
+                        const onlineProof = canMarkPayment && pt !== 'cash' && order.proof_of_payment ? `
+                            <div class="proof-of-payment">
+                                <h4>Proof of Payment</h4>
+                                <div class="proof-image">
+                                    <img src="../${order.proof_of_payment}" alt="Proof of Payment" onclick="showFullImage(this.src)">
+                                </div>
+                                <button type="button" class="verify-btn" onclick="verifyPayment(${order.order_id})">
+                                    <i class="fas fa-check"></i> Verify Payment
+                                </button>
+                            </div>` : '';
+
+                        const onlinePendingNoProof = canMarkPayment && pt !== 'cash' && !order.proof_of_payment ? `
+                            <div class="proof-of-payment">
+                                <p class="view-empty-note">Awaiting payment proof upload from the customer.</p>
+                            </div>` : '';
+
+                        const paymentHtml = `
+                            <div class="product-section-card">
+                                <h3 class="product-section-title">Payment Details</h3>
+                                <div class="product-info-section">
+                                    <div class="product-info-card">
+                                        <div class="product-info-icon"><i class="fas fa-credit-card"></i></div>
+                                        <div class="product-info-content">
+                                            <div class="product-info-label">Payment Type</div>
+                                            <div class="product-info-value">${displayTypeLabel}</div>
+                                        </div>
+                                    </div>
+                                    <div class="product-info-card">
+                                        <div class="product-info-icon"><i class="fas fa-check-circle"></i></div>
+                                        <div class="product-info-content">
+                                            <div class="product-info-label">Payment Status</div>
+                                            <div class="product-info-value ${payStatusCss}">${payStatusLabel}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                ${cashAction}
+                                ${onlineProof}
+                                ${onlinePendingNoProof}
+                            </div>`;
                         
                         Swal.fire({
                             title: `<div class="product-modal-header">
@@ -478,13 +871,23 @@ if (!isset($_SESSION['admin_id'])) {
                                         </div>
                                         <div class="product-info-card">
                                             <div class="product-info-icon">
-                                                <i class="fas fa-shopping-bag"></i>
+                                                <i class="fas ${orderTypeMeta(order.order_type).icon}"></i>
                                             </div>
                                             <div class="product-info-content">
                                                 <div class="product-info-label">Order Type</div>
-                                                <div class="product-info-value">${order.order_type}</div>
+                                                <div class="product-info-value">${renderTypeBadge(order.order_type, null)}</div>
                                             </div>
                                         </div>
+                                        ${order.table_number ? `
+                                        <div class="product-info-card">
+                                            <div class="product-info-icon">
+                                                <i class="fas fa-chair"></i>
+                                            </div>
+                                            <div class="product-info-content">
+                                                <div class="product-info-label">Table Number</div>
+                                                <div class="product-info-value">${order.table_number}</div>
+                                            </div>
+                                        </div>` : ''}
                                         <div class="product-info-card">
                                             <div class="product-info-icon">
                                                 <i class="fas fa-receipt"></i>
@@ -506,14 +909,16 @@ if (!isset($_SESSION['admin_id'])) {
                                             <div class="order-total-value">₱${parseFloat(order.total_amount).toFixed(2)}</div>
                                         </div>
                                     </div>
+
+                                    ${paymentHtml}
                                 </div>
                             `,
                             width: '900px',
                             showCloseButton: true,
                             showConfirmButton: true,
-                            showDenyButton: true,
+                            showDenyButton: canEditOrderLines(order.order_status),
                             confirmButtonText: 'Close',
-                            denyButtonText: 'Delete Order',
+                            denyButtonText: 'Cancel order',
                             confirmButtonColor: '#D4AF37',
                             denyButtonColor: '#dc3545',
                             customClass: {
@@ -526,58 +931,7 @@ if (!isset($_SESSION['admin_id'])) {
                             }
                         }).then((result) => {
                             if (result.isDenied) {
-                                // Show confirmation dialog for deletion
-                                Swal.fire({
-                                    title: 'Delete Order?',
-                                    text: 'This action cannot be undone. Are you sure you want to delete this order?',
-                                    icon: 'warning',
-                                    showCancelButton: true,
-                                    confirmButtonColor: '#dc3545',
-                                    cancelButtonColor: '#2E2E2E',
-                                    confirmButtonText: 'Yes, delete it!',
-                                    cancelButtonText: 'Cancel'
-                                }).then((deleteResult) => {
-                                    if (deleteResult.isConfirmed) {
-                                        // Delete the order
-                                        fetch('../backend/order_functions.php', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/x-www-form-urlencoded',
-                                            },
-                                            body: `action=delete_order&order_id=${orderId}`
-                                        })
-                                        .then(response => response.json())
-                                        .then(data => {
-                                            if (data.success) {
-                                                Swal.fire({
-                                                    title: 'Deleted!',
-                                                    text: 'The order has been deleted successfully.',
-                                                    icon: 'success',
-                                                    confirmButtonColor: '#D4AF37'
-                                                }).then(() => {
-                                                    // Reload the orders table
-                                                    loadOrders();
-                                                });
-                                            } else {
-                                                Swal.fire({
-                                                    title: 'Error',
-                                                    text: data.message || 'Failed to delete the order',
-                                                    icon: 'error',
-                                                    confirmButtonColor: '#D4AF37'
-                                                });
-                                            }
-                                        })
-                                        .catch(error => {
-                                            console.error('Error:', error);
-                                            Swal.fire({
-                                                title: 'Error',
-                                                text: 'An error occurred while deleting the order',
-                                                icon: 'error',
-                                                confirmButtonColor: '#D4AF37'
-                                            });
-                                        });
-                                    }
-                                });
+                                cancelWholeOrder(orderId);
                             }
                         });
                     }

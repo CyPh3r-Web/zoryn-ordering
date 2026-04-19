@@ -181,6 +181,9 @@
                         <button class="tab-btn rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300" data-report="inventory" aria-pressed="false">
                             <span class="inline-flex items-center gap-2"><i data-lucide="package" class="h-4 w-4"></i>Inventory Report</span>
                         </button>
+                        <button class="tab-btn rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300" data-report="purchase_orders" aria-pressed="false">
+                            <span class="inline-flex items-center gap-2"><i data-lucide="truck" class="h-4 w-4"></i>Purchase Orders</span>
+                        </button>
                     </div>
 
                     <div class="print-hide flex flex-wrap gap-3">
@@ -308,6 +311,13 @@
                     primaryChart: 'Top Selling Products',
                     secondaryChart: 'Inventory Value by Category',
                     tableTitle: 'Inventory Detail'
+                },
+                purchase_orders: {
+                    title: 'Purchase Orders Report',
+                    description: 'Supplier, price, and total ingredients purchased per selected period.',
+                    primaryChart: 'Spend by Supplier',
+                    secondaryChart: 'Recent PO Totals',
+                    tableTitle: 'Purchase Order Lines'
                 }
             };
 
@@ -445,8 +455,8 @@
                 Object.entries(summary || {}).forEach(([key, value]) => {
                     const isBoolean = typeof value === 'boolean';
                     const isNumeric = typeof value === 'number';
-                    const isCountMetric = /count|total_orders|total_items/i.test(key);
-                    const isQuantityMetric = /stock_out/i.test(key);
+                    const isCountMetric = /count|total_orders|total_items|total_pos/i.test(key);
+                    const isQuantityMetric = /stock_out|total_ingredients/i.test(key);
                     const label = key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
                     const displayValue = isBoolean
                         ? (value ? 'Yes' : 'No')
@@ -522,6 +532,7 @@
                 if (reportKey === 'income_statement') return slot === 'primary' ? 'line' : 'doughnut';
                 if (reportKey === 'balance_sheet') return slot === 'primary' ? 'bar' : 'doughnut';
                 if (reportKey === 'cash_flow') return 'bar';
+                if (reportKey === 'purchase_orders') return slot === 'primary' ? 'doughnut' : 'bar';
                 return slot === 'primary' ? 'bar' : 'doughnut';
             }
 
@@ -541,7 +552,8 @@
                 if (typeof value === 'boolean') {
                     return value ? 'Yes' : 'No';
                 }
-                if (typeof value === 'number' && key !== 'stock' && key !== 'stock_in' && key !== 'stock_out' && key !== 'reorder_level') {
+                const nonCurrency = ['stock','stock_in','stock_out','reorder_level','line_items','total_qty','item_count'];
+                if (typeof value === 'number' && !nonCurrency.includes(key)) {
                     return formatCurrency(value);
                 }
                 if (key === 'is_low_stock') {

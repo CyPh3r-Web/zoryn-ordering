@@ -7,6 +7,7 @@ ini_set('display_errors', 0); // Disable error display, we'll handle it ourselve
 header('Content-Type: application/json');
 
 require_once 'dbconn.php';
+require_once 'image_path_helper.php';
 session_start();
 
 // Function to send JSON response
@@ -51,8 +52,8 @@ class OrderManager {
         if (empty($path)) {
             return '';
         }
-        $filename = basename($path);
-        return '../assets/images/products/' . $filename;
+        $out = image_path_for_users_folder($path);
+        return $out === null ? '' : $out;
     }
 
     // Add item to current session order
@@ -170,8 +171,18 @@ class OrderManager {
     }
 
     // Create final order
-    public function createFinalOrder($customer_name, $order_type, $user_id, $payment_type = 'cash', $proof_of_payment = null) {
+    public function createFinalOrder($customer_name, $order_type, $user_id, $payment_type = 'cash', $proof_of_payment = null, $table_number = null) {
         try {
+            // Whitelist order_type
+            $allowedTypes = ['walk-in', 'account-order', 'dine-in', 'take-out'];
+            if (!in_array($order_type, $allowedTypes, true)) {
+                $order_type = 'walk-in';
+            }
+
+            // Normalize table_number (only meaningful for dine-in)
+            $table_number = is_string($table_number) ? trim($table_number) : null;
+            if ($table_number === '') $table_number = null;
+
             // Start transaction
             $this->conn->begin_transaction();
 
@@ -184,18 +195,31 @@ class OrderManager {
             error_log("Creating order for customer: " . $customer_name);
             error_log("Order items: " . print_r($current_order['items'], true));
 
-            // Check if there's enough stock for all items
+            // Check if there's enough stock for all items (use the current items list)
             require_once 'update_inventory.php';
             $inventoryUpdater = new InventoryUpdater($this->conn);
-            $stockCheck = $inventoryUpdater->checkStockForOrder($current_order['order_id']);
+            $stockCheck = $inventoryUpdater->checkStockForOrder($current_order['items']);
             if (!$stockCheck['success']) {
                 throw new Exception($stockCheck['message']);
             }
 
-            // Calculate total amount
-            $total_amount = array_reduce($current_order['items'], function($sum, $item) {
-                return $sum + ($item['price'] * $item['quantity']);
-            }, 0);
+            // Tax-inclusive pricing: split each line into net + VAT using its tax_rate
+            $subtotal = 0.0;   // VAT-exclusive base + VAT-exempt sales
+            $tax_amount = 0.0; // 12% (or whichever per-product rate) portion
+            foreach ($current_order['items'] as $item) {
+                $line = (float) $item['price'] * (int) $item['quantity'];
+                $rate = isset($item['tax_rate']) ? (float) $item['tax_rate'] : 12.0;
+                if ($rate > 0) {
+                    $net = $line / (1 + ($rate / 100));
+                    $subtotal   += $net;
+                    $tax_amount += ($line - $net);
+                } else {
+                    $subtotal += $line; // VAT-exempt
+                }
+            }
+            $total_amount = round($subtotal + $tax_amount, 2);
+            $subtotal   = round($subtotal, 2);
+            $tax_amount = round($tax_amount, 2);
 
             // Handle payment proof upload if it's an online payment
             $proof_of_payment_path = null;
@@ -223,25 +247,27 @@ class OrderManager {
             // Set payment status based on payment type
             $payment_status = ($payment_type === 'cash') ? 'unpaid' : 'pending';
 
-            // Create order
+            // Create order (with tax + table-number metadata)
             $stmt = $this->conn->prepare("
                 INSERT INTO orders (
-                    customer_name, order_type, user_id, order_status, 
-                    total_amount, payment_type, payment_status, proof_of_payment
-                ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)
+                    customer_name, order_type, user_id, order_status,
+                    total_amount, subtotal, tax_amount,
+                    payment_type, payment_status, proof_of_payment, table_number
+                ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
             ");
-            
             $stmt->bind_param(
-                "ssidsss", 
-                $customer_name, 
-                $order_type, 
-                $user_id, 
+                "ssidddssss",
+                $customer_name,
+                $order_type,
+                $user_id,
                 $total_amount,
+                $subtotal,
+                $tax_amount,
                 $payment_type,
                 $payment_status,
-                $proof_of_payment_path
+                $proof_of_payment_path,
+                $table_number
             );
-            
             $stmt->execute();
             $order_id = $this->conn->insert_id;
 
@@ -611,13 +637,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $customer_name = $_POST['customer_name'] ?? '';
                 $order_type = $_POST['order_type'] ?? 'account-order';
                 $user_id = $_POST['user_id'] ?? null;
-                
+                $table_number = $_POST['table_number'] ?? null;
+
                 if (empty($customer_name)) {
                     sendJsonResponse(['error' => 'Customer name is required']);
                 }
-                
+
                 try {
-                    $result = $orderManager->createFinalOrder($customer_name, $order_type, $user_id);
+                    $result = $orderManager->createFinalOrder($customer_name, $order_type, $user_id, 'cash', null, $table_number);
                     sendJsonResponse($result);
                 } catch (Exception $e) {
                     error_log("Error creating order: " . $e->getMessage());
@@ -734,19 +761,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $order_type = $_POST['order_type'] ?? 'account-order';
                 $user_id = $_POST['user_id'] ?? null;
                 $payment_type = $_POST['payment_type'] ?? 'cash';
+                $table_number = $_POST['table_number'] ?? null;
                 $proof_of_payment = isset($_FILES['proof_of_payment']) ? $_FILES['proof_of_payment'] : null;
-                
+
                 if (empty($customer_name)) {
                     sendJsonResponse(['error' => 'Customer name is required']);
                 }
-                
+
                 try {
                     $result = $orderManager->createFinalOrder(
-                        $customer_name, 
-                        $order_type, 
+                        $customer_name,
+                        $order_type,
                         $user_id,
                         $payment_type,
-                        $proof_of_payment
+                        $proof_of_payment,
+                        $table_number
                     );
                     sendJsonResponse($result);
                 } catch (Exception $e) {

@@ -9,17 +9,26 @@ function isActiveCashier($page) {
     return ($current_page === $page) ? 'active' : '';
 }
 
-if (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier'):
+$staffRole  = $_SESSION['role'] ?? null;
+$isStaff    = in_array($staffRole, ['cashier', 'waiter'], true);
+$isCashier  = $staffRole === 'cashier';
+if ($isStaff):
+    $panelLabel = $isCashier ? 'CASHIER' : 'WAITER';
+    $panelSub   = $isCashier ? 'Point of Sale' : 'Order Taking';
+    $panelIcon  = $isCashier ? 'fa-cash-register' : 'fa-concierge-bell';
 ?>
 
 <div id="sidebar" class="fixed top-0 left-0 h-screen w-[260px] bg-[#121212]/95 backdrop-blur-xl border-r border-[#2E2E2E]/50 pt-20 z-[80] transition-all duration-300 flex flex-col" style="font-family: 'Poppins', sans-serif;">
     <div class="absolute top-0 left-0 w-[3px] h-full bg-gradient-to-b from-[#D4AF37] via-[#F5D76E] to-[#B8921E] opacity-40"></div>
     <div class="px-5 py-4 border-b border-[#2E2E2E]/50">
-        <div class="flex items-center gap-3">
+        <div class="flex items-center justify-between gap-3">
+            <button id="sidebarToggle" type="button" class="w-8 h-8 rounded-lg border border-[#D4AF37]/35 bg-[#1A1A1A] text-[#D4AF37] hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]/60 transition-all duration-200 flex items-center justify-center" aria-label="Toggle sidebar">
+                <i class="fas fa-bars text-xs"></i>
+            </button>
             <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-[#D4AF37]/20 to-[#D4AF37]/5 flex items-center justify-center border border-[#D4AF37]/20">
-                <i class="fas fa-cash-register text-sm text-[#D4AF37]"></i>
+                <i class="fas <?= $panelIcon ?> text-sm text-[#D4AF37]"></i>
             </div>
-            <div><h3 class="text-sm font-bold text-[#D4AF37] tracking-wider">CASHIER</h3><p class="text-[10px] text-[#666]">Point of Sale</p></div>
+            <div><h3 class="text-sm font-bold text-[#D4AF37] tracking-wider"><?= $panelLabel ?></h3><p class="text-[10px] text-[#666]"><?= $panelSub ?></p></div>
         </div>
     </div>
 
@@ -34,6 +43,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier'):
                     <span class="font-medium">New Order</span>
                 </a>
             </li>
+            <?php if ($isCashier): ?>
             <li class="cashier-item <?= isActiveCashier('orders.php') ?>">
                 <a href="orders.php" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-[#B0B0B0] hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all duration-200 group">
                     <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#D4AF37]/5 group-hover:bg-[#D4AF37]/15 transition-all duration-200">
@@ -42,6 +52,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier'):
                     <span class="font-medium">Orders</span>
                 </a>
             </li>
+            <?php endif; ?>
         </ul>
     </div>
 
@@ -56,8 +67,34 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier'):
     </div>
 </div>
 
+<button id="sidebarReopen" type="button" aria-label="Open sidebar">
+    <i class="fas fa-chevron-right"></i>
+</button>
+
 <style>
 #sidebar.collapsed { transform: translateX(-260px); }
+#sidebarReopen {
+    position: fixed;
+    top: 84px;
+    left: 10px;
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    border: 1px solid rgba(212,175,55,0.45);
+    background: rgba(18,18,18,0.92);
+    color: #D4AF37;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 90;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.28);
+}
+#sidebarReopen:hover {
+    background: rgba(212,175,55,0.12);
+    border-color: rgba(212,175,55,0.7);
+}
 .cashier-item.active > a { background: rgba(212,175,55,0.1) !important; color: #D4AF37 !important; }
 .cashier-item.active > a > div:first-child { background: rgba(212,175,55,0.2) !important; }
 .cashier-item.active > a > div:first-child i { color: #D4AF37 !important; }
@@ -68,6 +105,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier'):
     #sidebar { transform: translateX(-100%); }
     #sidebar.collapsed { transform: translateX(0); }
     .main-content { margin-left: 0; }
+    #sidebarReopen { top: 74px; left: 8px; }
 }
 </style>
 
@@ -75,28 +113,55 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'cashier'):
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarReopen = document.getElementById('sidebarReopen');
     const mainContent = document.querySelector('.main-content');
     const isSidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+
+    function isSidebarOpen() {
+        if (window.innerWidth <= 768) {
+            return sidebar.classList.contains('collapsed');
+        }
+        return !sidebar.classList.contains('collapsed');
+    }
+
+    function syncSidebarUi() {
+        if (!sidebarReopen) return;
+        sidebarReopen.style.display = isSidebarOpen() ? 'none' : 'inline-flex';
+    }
 
     if (isSidebarCollapsed) {
         sidebar.classList.add('collapsed');
         if (mainContent) mainContent.classList.add('expanded');
     }
+    syncSidebarUi();
 
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', function() {
             sidebar.classList.toggle('collapsed');
             if (mainContent) mainContent.classList.toggle('expanded');
             localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            syncSidebarUi();
         });
     }
 
-    document.querySelectorAll('.sidebar-menu a').forEach(link => {
+    if (sidebarReopen) {
+        sidebarReopen.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+            if (mainContent) mainContent.classList.toggle('expanded');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            syncSidebarUi();
+        });
+    }
+
+    window.addEventListener('resize', syncSidebarUi);
+
+    document.querySelectorAll('#sidebar a').forEach(link => {
         link.addEventListener('click', function() {
             if (window.innerWidth <= 768) {
                 sidebar.classList.add('collapsed');
                 if (mainContent) mainContent.classList.add('expanded');
                 localStorage.setItem('sidebarCollapsed', 'true');
+                syncSidebarUi();
             }
         });
     });

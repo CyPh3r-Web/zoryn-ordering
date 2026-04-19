@@ -69,6 +69,17 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
             color: #888;
             border: 1px solid rgba(100,100,100,0.25);
         }
+        .ingredient-unit-cost {
+            font-size: 12px;
+            color: #9a9a9a;
+            margin-top: 4px;
+        }
+        .recipe-cost-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #c9a227;
+            margin: 4px 0 0;
+        }
         .modal-content {
             background-color: #1F1F1F;
             border: 1px solid rgba(212,175,55,0.15);
@@ -147,6 +158,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                         <th>Name</th>
                                         <th>Category</th>
                                         <th>Price</th>
+                                        <th>Est. COGS</th>
                                         <th>VAT</th>
                                         <th>Ingredients</th>
                                         <th>Status</th>
@@ -175,6 +187,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                         <th>Name</th>
                                         <th>Category</th>
                                         <th>Stock</th>
+                                        <th>Unit cost</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -252,6 +265,12 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                 <span class="premium-btn-icon"><?= renderProductsIcon('plus') ?></span> Select Ingredients
                             </button>
                         </div>
+                    </div>
+
+                    <div class="form-group recipe-cost-summary">
+                        <label>Est. ingredient cost (COGS)</label>
+                        <p class="recipe-cost-value" id="addRecipeCostValue">₱0.00</p>
+                        <p style="font-size:11px;color:#888;margin-top:4px;">Uses each ingredient’s current unit cost (updated when you receive purchase orders).</p>
                     </div>
                     
                     <div class="form-group">
@@ -435,6 +454,12 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                             </button>
                         </div>
                     </div>
+
+                    <div class="form-group recipe-cost-summary">
+                        <label>Est. ingredient cost (COGS)</label>
+                        <p class="recipe-cost-value" id="editRecipeCostValue">₱0.00</p>
+                        <p style="font-size:11px;color:#888;margin-top:4px;">Uses each ingredient’s current unit cost (updated when you receive purchase orders).</p>
+                    </div>
                     
                     <div class="form-group">
                         <label for="editProductStatus">Status</label>
@@ -460,6 +485,44 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
             let ingredients = [];
             let selectedProductIngredients = [];
             let isEditingProduct = false;
+
+            function convertQtyToStockUnitClient(qty, fromUnit, toUnit) {
+                const from = String(fromUnit).toLowerCase().trim();
+                const to = String(toUnit).toLowerCase().trim();
+                const q = parseFloat(qty) || 0;
+                if (from === to) return q;
+                const weightToG = { kg: 1000, g: 1, mg: 0.001, oz: 28.3495, lb: 453.592 };
+                const volToMl = { liters: 1000, l: 1000, ml: 1, cup: 236.588, tbsp: 14.7868, tsp: 4.92892, 'fl oz': 29.5735 };
+                const countUnits = ['pcs', 'pieces', 'units'];
+                if (weightToG[from] !== undefined && weightToG[to] !== undefined) {
+                    return q * weightToG[from] / weightToG[to];
+                }
+                if (volToMl[from] !== undefined && volToMl[to] !== undefined) {
+                    return q * volToMl[from] / volToMl[to];
+                }
+                if (countUnits.includes(from) && countUnits.includes(to)) return q;
+                return q;
+            }
+
+            function recipeLineCostClient(ing) {
+                const full = ingredients.find(i => String(i.ingredient_id) === String(ing.id));
+                if (!full) return 0;
+                const qty = convertQtyToStockUnitClient(ing.quantity, ing.unit, full.unit);
+                return Math.round(qty * parseFloat(full.default_unit_cost || 0) * 100) / 100;
+            }
+
+            function totalRecipeCostClient(arr) {
+                if (!arr || !arr.length) return 0;
+                return Math.round(arr.reduce((s, x) => s + recipeLineCostClient(x), 0) * 100) / 100;
+            }
+
+            function updateProductRecipeSummaries() {
+                const t = totalRecipeCostClient(selectedProductIngredients);
+                const addEl = document.getElementById('addRecipeCostValue');
+                const editEl = document.getElementById('editRecipeCostValue');
+                if (addEl) addEl.textContent = '₱' + t.toFixed(2);
+                if (editEl) editEl.textContent = '₱' + t.toFixed(2);
+            }
 
             function premiumIcon(name, className = 'h-4 w-4') {
                 const baseClass = className;
@@ -497,12 +560,14 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                 selectedIngredients.forEach(ingredient => {
                     const tag = document.createElement('div');
                     tag.className = 'ingredient-tag';
+                    const line = recipeLineCostClient(ingredient);
                     tag.innerHTML = `
-                        <span>${ingredient.name} (${ingredient.quantity} ${ingredient.unit})</span>
+                        <span>${ingredient.name} (${ingredient.quantity} ${ingredient.unit}) · ₱${line.toFixed(2)}</span>
                         <span class="remove-btn">&times;</span>
                     `;
                     container.appendChild(tag);
                 });
+                updateProductRecipeSummaries();
             }
 
             function syncIngredientModalSelections(selectedIngredients) {
@@ -693,6 +758,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                             <td>${ingredient.ingredient_name}</td>
                             <td>${ingredient.category_name}</td>
                             <td>${ingredient.stock} ${ingredient.unit}</td>
+                            <td>₱${parseFloat(ingredient.default_unit_cost || 0).toFixed(2)} <span style="color:#888;font-size:12px">/${ingredient.unit}</span></td>
                             <td><span class="status-badge ${ingredient.status}">${ingredient.status}</span></td>
                             <td class="action-buttons">
                                 <button class="action-btn edit" data-ingredient-id="${ingredient.ingredient_id}" title="Edit Ingredient">
@@ -712,7 +778,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                     // Show a message when no ingredients are available
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td colspan="5" class="text-center">No ingredients available</td>
+                        <td colspan="6" class="text-center">No ingredients available</td>
                     `;
                     tbody.appendChild(row);
                 }
@@ -801,6 +867,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                     <span class="premium-inline-icon premium-stock-icon">${premiumIcon('stock')}</span>
                                     <span>Current Stock: ${ingredient.stock} ${ingredient.unit}</span>
                                 </div>
+                                <div class="ingredient-unit-cost">Unit cost: ₱${parseFloat(ingredient.default_unit_cost || 0).toFixed(2)} / ${ingredient.unit}</div>
                                 <div class="ingredient-inputs">
                                     <div class="input-group">
                                         <label>Amount</label>
@@ -942,7 +1009,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                         noResultsRow = document.createElement('tr');
                         noResultsRow.className = 'no-results-message';
                         noResultsRow.innerHTML = `
-                            <td colspan="8" class="text-center">
+                            <td colspan="9" class="text-center">
                                 <span class="premium-empty-icon">${premiumIcon('search', 'h-5 w-5')}</span>
                                 <p>No products found matching your search criteria</p>
                             </td>
@@ -991,11 +1058,12 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                             <td>${product.product_name}</td>
                             <td>${product.category_name}</td>
                             <td>₱${parseFloat(product.price).toFixed(2)}</td>
+                            <td title="Sum of recipe quantities × current ingredient unit costs">${product.ingredients && product.ingredients.length ? '₱' + parseFloat(product.recipe_cost || 0).toFixed(2) : '—'}</td>
                             <td><span class="vat-badge ${taxBadgeClass}">${taxLabel}</span></td>
                             <td>
                                 <div class="ingredients-list">
                                     ${product.ingredients ? product.ingredients.map(ing => 
-                                        `<span class="ingredient-tag">${ing.ingredient_name} (${ing.quantity} ${ing.unit})</span>`
+                                        `<span class="ingredient-tag">${ing.ingredient_name} (${ing.quantity} ${ing.unit})${ing.line_cost != null ? ` · ₱${parseFloat(ing.line_cost).toFixed(2)}` : ''}</span>`
                                     ).join('') : 'No ingredients'}
                                 </div>
                             </td>
@@ -1019,7 +1087,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                     const row = document.createElement('tr');
                     row.className = 'no-results-message';
                     row.innerHTML = `
-                        <td colspan="8" class="text-center">
+                        <td colspan="9" class="text-center">
                             <span class="premium-empty-icon">${premiumIcon('empty', 'h-5 w-5')}</span>
                             <p>No products available</p>
                         </td>
@@ -1262,8 +1330,9 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                 selectedIngredients.forEach(ingredient => {
                     const tag = document.createElement('div');
                     tag.className = 'selected-ingredient-tag';
+                    const line = recipeLineCostClient(ingredient);
                     tag.innerHTML = `
-                        <span>${ingredient.name} (${ingredient.quantity} ${ingredient.unit})</span>
+                        <span>${ingredient.name} (${ingredient.quantity} ${ingredient.unit}) · ₱${line.toFixed(2)}</span>
                         <span class="remove-btn">&times;</span>
                     `;
                     previewContainer.appendChild(tag);
@@ -1286,9 +1355,11 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                             const product = data.data;
                             const ingredientsMarkup = product.ingredients && product.ingredients.length
                                 ? product.ingredients.map(ing =>
-                                    `<span class="view-ingredient-tag">${ing.ingredient_name} (${ing.quantity} ${ing.unit})</span>`
+                                    `<span class="view-ingredient-tag">${ing.ingredient_name} (${ing.quantity} ${ing.unit})${ing.line_cost != null ? ` · ₱${parseFloat(ing.line_cost).toFixed(2)}` : ''}</span>`
                                 ).join('')
                                 : '<span class="view-empty-note">No ingredients</span>';
+                            const rc = parseFloat(product.recipe_cost || 0);
+                            const gm = product.gross_margin != null ? parseFloat(product.gross_margin) : (parseFloat(product.price) - rc);
 
                             Swal.fire({
                                 title: 'Product Details',
@@ -1308,6 +1379,14 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                                     <div class="product-view-stat">
                                                         <span class="product-view-label">Price (VAT-incl.)</span>
                                                         <strong>₱${parseFloat(product.price).toFixed(2)}</strong>
+                                                    </div>
+                                                    <div class="product-view-stat">
+                                                        <span class="product-view-label">Est. COGS</span>
+                                                        <strong>₱${rc.toFixed(2)}</strong>
+                                                    </div>
+                                                    <div class="product-view-stat">
+                                                        <span class="product-view-label">Gross margin</span>
+                                                        <strong>₱${gm.toFixed(2)}</strong>
                                                     </div>
                                                     <div class="product-view-stat">
                                                         <span class="product-view-label">VAT Rate</span>
@@ -1570,6 +1649,8 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                             document.getElementById('addProductModal').style.display = 'none';
                             this.reset();
                             document.getElementById('selectedIngredients').innerHTML = '';
+                            selectedProductIngredients = [];
+                            document.getElementById('addRecipeCostValue').textContent = '₱0.00';
                             fetchProducts();
                         });
                     } else {

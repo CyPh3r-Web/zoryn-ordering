@@ -59,7 +59,7 @@ function fetchValue(mysqli $conn, string $sql, $default = 0) {
 $totalSales = (float) fetchValue($conn, "SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE order_status = 'completed'", 0);
 $totalOrders = (int) fetchValue($conn, "SELECT COUNT(*) FROM orders WHERE order_status = 'completed'", 0);
 $activeProducts = (int) fetchValue($conn, "SELECT COUNT(*) FROM products WHERE status = 'active'", 0);
-$totalCustomers = (int) fetchValue($conn, "SELECT COUNT(*) FROM users WHERE role = 'user' AND account_status = 'active'", 0);
+$totalStaff = (int) fetchValue($conn, "SELECT COUNT(*) FROM users WHERE role IN ('waiter', 'cashier') AND account_status = 'active'", 0);
 
 $salesDailyRows = fetchRows($conn, "
     SELECT DATE(created_at) AS metric_date, COALESCE(SUM(total_amount), 0) AS metric_value
@@ -79,11 +79,11 @@ $ordersDailyRows = fetchRows($conn, "
     ORDER BY DATE(created_at) ASC
 ");
 
-$usersDailyRows = fetchRows($conn, "
+$staffDailyRows = fetchRows($conn, "
     SELECT DATE(created_at) AS metric_date, COUNT(*) AS metric_value
     FROM users
     WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 365 DAY)
-      AND role = 'user'
+      AND role IN ('waiter', 'cashier')
     GROUP BY DATE(created_at)
     ORDER BY DATE(created_at) ASC
 ");
@@ -110,7 +110,7 @@ $dashboardPayload = [
         'totalSales' => $totalSales,
         'totalOrders' => $totalOrders,
         'activeProducts' => $activeProducts,
-        'totalCustomers' => $totalCustomers,
+        'totalStaff' => $totalStaff,
     ],
     'series' => [
         'salesDaily' => array_map(function ($row) {
@@ -119,9 +119,9 @@ $dashboardPayload = [
         'ordersDaily' => array_map(function ($row) {
             return ['date' => $row['metric_date'], 'value' => (int) $row['metric_value']];
         }, $ordersDailyRows),
-        'usersDaily' => array_map(function ($row) {
+        'staffDaily' => array_map(function ($row) {
             return ['date' => $row['metric_date'], 'value' => (int) $row['metric_value']];
-        }, $usersDailyRows),
+        }, $staffDailyRows),
         'categoryDistribution' => array_map(function ($row) {
             return ['label' => $row['category_name'], 'value' => (int) $row['total_products']];
         }, $categoryRows),
@@ -304,8 +304,8 @@ $dashboardPayload = [
                 <article class="group rounded-2xl border border-yellow-500/20 bg-gray-900/75 p-5 shadow-lg shadow-black/30 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-yellow-400/35">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <p class="text-sm text-gray-400">Customer Growth Base</p>
-                            <h2 id="statTotalCustomers" class="mt-3 text-3xl font-bold text-white"><?php echo number_format($totalCustomers); ?></h2>
+                            <p class="text-sm text-gray-400">Active Staff</p>
+                            <h2 id="statTotalStaff" class="mt-3 text-3xl font-bold text-white"><?php echo number_format($totalStaff); ?></h2>
                             <p class="mt-2 text-xs text-yellow-300/90"><?php echo number_format($totalOrders); ?> completed orders</p>
                         </div>
                         <div class="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-yellow-500/30 to-amber-600/20 text-yellow-300 ring-1 ring-yellow-500/20">
@@ -431,12 +431,12 @@ $dashboardPayload = [
                                     <i data-lucide="activity" class="h-5 w-5"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-lg font-semibold text-white">User and Order Growth</h3>
-                                    <p class="text-sm text-gray-400">Area chart comparing customer signups and completed orders</p>
+                                    <h3 class="text-lg font-semibold text-white">Staff and Order Growth</h3>
+                                    <p class="text-sm text-gray-400">New waiter &amp; cashier accounts vs completed orders (admin accounts excluded)</p>
                                 </div>
                             </div>
                             <div class="flex flex-wrap gap-3 text-sm">
-                                <span class="rounded-full border border-yellow-500/20 bg-black/30 px-3 py-1 text-gray-300">Users: <strong id="growthUsers" class="text-white">0</strong></span>
+                                <span class="rounded-full border border-yellow-500/20 bg-black/30 px-3 py-1 text-gray-300">Staff: <strong id="growthStaff" class="text-white">0</strong></span>
                                 <span class="rounded-full border border-yellow-500/20 bg-black/30 px-3 py-1 text-gray-300">Orders: <strong id="growthOrders" class="text-white">0</strong></span>
                             </div>
                         </div>
@@ -446,7 +446,7 @@ $dashboardPayload = [
                         </div>
                     </div>
                     <div class="chart-canvas-wrap">
-                        <canvas id="growthAreaChart" aria-label="User and order growth area chart" role="img"></canvas>
+                        <canvas id="growthAreaChart" aria-label="Staff and order growth area chart" role="img"></canvas>
                         <div class="chart-skeleton" data-skeleton-for="growthAreaChart">
                             <div class="skeleton-pill"></div>
                             <div class="skeleton-bar"></div>
@@ -877,18 +877,18 @@ $dashboardPayload = [
 
         function renderGrowthChart(range) {
             const chartId = 'growthAreaChart';
-            const users = aggregateSeries(dashboardPayload.series.usersDaily, range);
+            const staff = aggregateSeries(dashboardPayload.series.staffDaily, range);
             const orders = aggregateSeries(dashboardPayload.series.ordersDaily, range);
-            const orderedKeys = Array.from(new Set([...(users.keys || []), ...(orders.keys || [])])).sort((a, b) => a.localeCompare(b));
-            const userMap = new Map((users.keys || []).map((key, index) => [key, users.values[index] || 0]));
+            const orderedKeys = Array.from(new Set([...(staff.keys || []), ...(orders.keys || [])])).sort((a, b) => a.localeCompare(b));
+            const staffMap = new Map((staff.keys || []).map((key, index) => [key, staff.values[index] || 0]));
             const orderMap = new Map((orders.keys || []).map((key, index) => [key, orders.values[index] || 0]));
             const labels = orderedKeys.map((key) => labelFromKey(key, range));
-            const userValues = orderedKeys.map((key) => userMap.get(key) || 0);
+            const staffValues = orderedKeys.map((key) => staffMap.get(key) || 0);
             const orderValues = orderedKeys.map((key) => orderMap.get(key) || 0);
             const canvas = document.getElementById(chartId);
             const ctx = canvas.getContext('2d');
 
-            document.getElementById('growthUsers').textContent = userValues.reduce((sum, value) => sum + value, 0).toLocaleString();
+            document.getElementById('growthStaff').textContent = staffValues.reduce((sum, value) => sum + value, 0).toLocaleString();
             document.getElementById('growthOrders').textContent = orderValues.reduce((sum, value) => sum + value, 0).toLocaleString();
 
             const userGradient = (context) => {
@@ -917,7 +917,7 @@ $dashboardPayload = [
 
             if (charts[chartId]) {
                 charts[chartId].data.labels = labels;
-                charts[chartId].data.datasets[0].data = userValues;
+                charts[chartId].data.datasets[0].data = staffValues;
                 charts[chartId].data.datasets[1].data = orderValues;
                 charts[chartId].update();
                 hideSkeleton(chartId);
@@ -930,8 +930,8 @@ $dashboardPayload = [
                     labels,
                     datasets: [
                         {
-                            label: 'Users',
-                            data: userValues,
+                            label: 'Staff signups',
+                            data: staffValues,
                             borderColor: '#FFD700',
                             backgroundColor: userGradient,
                             fill: true,

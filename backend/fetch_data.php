@@ -1,5 +1,6 @@
 <?php
 require_once 'dbconn.php';
+require_once 'recipe_cost_helper.php';
 
 // Function to fetch all ingredient categories
 function fetchIngredientCategories() {
@@ -53,6 +54,7 @@ function fetchIngredients() {
                     i.category_id,
                     i.stock,
                     i.unit,
+                    i.default_unit_cost,
                     i.status,
                     i.created_at,
                     i.updated_at,
@@ -100,9 +102,12 @@ function fetchProducts() {
             while($row = $result->fetch_assoc()) {
                 // Fetch ingredients for each product
                 $ingredientsSql = "SELECT 
+                                    i.ingredient_id,
                                     i.ingredient_name,
                                     pi.quantity,
-                                    pi.unit
+                                    pi.unit,
+                                    i.unit AS stock_unit,
+                                    i.default_unit_cost
                                 FROM product_ingredients pi
                                 JOIN ingredients i ON pi.ingredient_id = i.ingredient_id
                                 WHERE pi.product_id = ?";
@@ -113,12 +118,14 @@ function fetchProducts() {
                 
                 $ingredients = [];
                 if ($ingredientsResult->num_rows > 0) {
-                    while($ingredient = $ingredientsResult->fetch_assoc()) {
+                    while ($ingredient = $ingredientsResult->fetch_assoc()) {
                         $ingredients[] = $ingredient;
                     }
                 }
-                
-                $row['ingredients'] = $ingredients;
+
+                $costBundle         = recipe_cost_enrich_lines($ingredients);
+                $row['ingredients'] = $costBundle['lines'];
+                $row['recipe_cost'] = $costBundle['recipe_cost'];
                 $products[] = $row;
             }
         }
@@ -152,6 +159,7 @@ function fetchIngredient($ingredientId) {
                     i.category_id,
                     i.stock,
                     i.unit,
+                    i.default_unit_cost,
                     i.status,
                     i.created_at,
                     i.updated_at,

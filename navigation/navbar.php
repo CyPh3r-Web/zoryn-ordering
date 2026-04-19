@@ -108,6 +108,14 @@ tailwind.config = {
                     <i class="fas fa-shopping-cart text-sm"></i>
                 </a>
 
+                <?php if (($_SESSION['role'] ?? '') === 'cashier'): ?>
+                <!-- Orders (cashier only) -->
+                <a href="orders.php" id="navOrdersLink" class="relative w-9 h-9 flex items-center justify-center rounded-lg text-z-gold/70 hover:text-z-gold hover:bg-z-gold/10 transition-all" title="Orders">
+                    <i class="fas fa-receipt text-sm"></i>
+                    <span id="pendingOrdersBadge" class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center" style="display:none;">0</span>
+                </a>
+                <?php endif; ?>
+
                 <!-- Home -->
                 <a href="home.php" class="w-9 h-9 flex items-center justify-center rounded-lg text-z-gold/70 hover:text-z-gold hover:bg-z-gold/10 transition-all" title="Home">
                     <i class="fas fa-home text-sm"></i>
@@ -149,9 +157,9 @@ tailwind.config = {
                         <a href="profile.php" class="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-z-gold hover:bg-z-gold/5 transition-all">
                             <i class="fas fa-user w-4 text-center text-z-gold/50"></i>Profile Settings
                         </a>
-                        <a href="settings-2fa.php" class="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-z-gold hover:bg-z-gold/5 transition-all">
-                            <i class="fas fa-shield-alt w-4 text-center text-z-gold/50"></i>Two-Factor Auth
-                        </a>
+                        <button type="button" id="openChangePasswordModal" class="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:text-z-gold hover:bg-z-gold/5 transition-all w-full text-left border-0 bg-transparent cursor-pointer font-[inherit]">
+                            <i class="fas fa-key w-4 text-center text-z-gold/50"></i>Change Password
+                        </button>
                         <div class="mx-4 my-1 border-t border-z-border"></div>
                         <a href="#" onclick="confirmLogout(event)" class="flex items-center gap-3 px-5 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-all">
                             <i class="fas fa-sign-out-alt w-4 text-center"></i>Logout
@@ -165,6 +173,32 @@ tailwind.config = {
 
 <!-- Spacer for fixed navbar -->
 <div class="h-16"></div>
+
+<!-- Change password modal (stays on current page) -->
+<div id="changePasswordModal" class="fixed inset-0 z-[1050] hidden flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="cpModalTitle">
+    <div class="relative w-full max-w-md rounded-2xl border border-z-border bg-[#1F1F1F] shadow-2xl shadow-black/50 max-h-[90vh] overflow-y-auto">
+        <button type="button" id="closeChangePasswordModal" class="absolute top-3 right-3 z-10 w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10 text-xl leading-none" aria-label="Close">&times;</button>
+        <div class="p-6 pt-9">
+            <h2 id="cpModalTitle" class="text-lg font-bold text-z-gold mb-1">Change Password</h2>
+            <p class="text-xs text-gray-400 mb-5">Enter your current password, then a new one (at least 8 characters).</p>
+            <form id="changePasswordModalForm" class="space-y-3">
+                <div>
+                    <label for="cp_current_password" class="block text-[11px] font-medium text-z-gold-pale/80 mb-1.5 uppercase tracking-wider">Current password</label>
+                    <input type="password" id="cp_current_password" required autocomplete="current-password" class="w-full px-3 py-2.5 bg-z-dark border border-z-border rounded-xl text-z-gold-light text-sm focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all">
+                </div>
+                <div>
+                    <label for="cp_new_password" class="block text-[11px] font-medium text-z-gold-pale/80 mb-1.5 uppercase tracking-wider">New password</label>
+                    <input type="password" id="cp_new_password" required autocomplete="new-password" minlength="8" placeholder="Minimum 8 characters" class="w-full px-3 py-2.5 bg-z-dark border border-z-border rounded-xl text-z-gold-light text-sm focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all">
+                </div>
+                <div>
+                    <label for="cp_confirm_password" class="block text-[11px] font-medium text-z-gold-pale/80 mb-1.5 uppercase tracking-wider">Confirm new password</label>
+                    <input type="password" id="cp_confirm_password" required autocomplete="new-password" minlength="8" class="w-full px-3 py-2.5 bg-z-dark border border-z-border rounded-xl text-z-gold-light text-sm focus:border-z-gold focus:ring-2 focus:ring-z-gold/20 outline-none transition-all">
+                </div>
+                <button type="submit" class="w-full py-2.5 mt-2 rounded-xl font-semibold text-sm text-z-black bg-gradient-to-r from-[#F4D26B] to-[#C99B2A] hover:from-[#FFDF7D] hover:to-[#D3A533] transition shadow-lg shadow-z-gold/15">Update password</button>
+            </form>
+        </div>
+    </div>
+</div>
 
 <style>
 @keyframes slideDown {
@@ -251,7 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        notificationList.insertBefore(notificationItem, notificationList.firstChild);
+        notificationList.appendChild(notificationItem);
     }
 
     window.markNotificationAsRead = function(notificationId, buttonElement) {
@@ -285,11 +319,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.notifications.length === 0) {
                     notificationList.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fas fa-bell-slash text-3xl text-z-gold/20 mb-3 block"></i><p class="text-sm">No notifications yet</p></div>';
                 } else {
-                    data.notifications.forEach(n => addNotification(n));
+                    const sorted = data.notifications.slice().sort((a, b) => {
+                        const ta = new Date(a.created_at).getTime();
+                        const tb = new Date(b.created_at).getTime();
+                        if (ta !== tb) return ta - tb;
+                        return (Number(a.id) || 0) - (Number(b.id) || 0);
+                    });
+                    sorted.forEach(n => addNotification(n));
                 }
                 updateBadgeCount();
             }
         }).catch(e => console.error('Error:', e));
+    }
+
+    // Cashier-only: live pending-orders badge on the navbar Orders icon
+    const pendingBadge = document.getElementById('pendingOrdersBadge');
+    if (pendingBadge) {
+        function refreshPendingOrdersBadge() {
+            fetch('../backend/order_functions.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=get_order_counts'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                const active = (parseInt(data.counts.pending || 0, 10)) + (parseInt(data.counts.preparing || 0, 10));
+                pendingBadge.textContent = active > 99 ? '99+' : active;
+                pendingBadge.style.display = active > 0 ? 'flex' : 'none';
+            }).catch(() => { /* silent */ });
+        }
+        refreshPendingOrdersBadge();
+        setInterval(refreshPendingOrdersBadge, 15000);
     }
 
     notificationIcon.addEventListener('click', function(e) {
@@ -416,6 +477,62 @@ document.addEventListener('DOMContentLoaded', function() {
                     else Swal.fire({ title: 'Error', text: data.message || 'Payment failed', icon: 'error', confirmButtonColor: '#D4AF37' });
                 }).catch(() => Swal.fire({ title: 'Error', text: 'Payment error occurred', icon: 'error', confirmButtonColor: '#D4AF37' }));
             }
+        });
+    }
+
+    const changePasswordModal = document.getElementById('changePasswordModal');
+    const openCpBtn = document.getElementById('openChangePasswordModal');
+    const closeCpBtn = document.getElementById('closeChangePasswordModal');
+    const cpForm = document.getElementById('changePasswordModalForm');
+    function closeChangePasswordModalFn() {
+        if (!changePasswordModal) return;
+        changePasswordModal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+    function openChangePasswordModalFn() {
+        if (!changePasswordModal) return;
+        changePasswordModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        profileDropdown.classList.add('hidden');
+        notificationPanel.classList.add('hidden');
+    }
+    if (openCpBtn) {
+        openCpBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openChangePasswordModalFn();
+        });
+    }
+    if (closeCpBtn) closeCpBtn.addEventListener('click', closeChangePasswordModalFn);
+    if (changePasswordModal) {
+        changePasswordModal.addEventListener('click', function(e) {
+            if (e.target === changePasswordModal) closeChangePasswordModalFn();
+        });
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && changePasswordModal && !changePasswordModal.classList.contains('hidden')) closeChangePasswordModalFn();
+    });
+    if (cpForm) {
+        cpForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const current_password = document.getElementById('cp_current_password').value;
+            const new_password = document.getElementById('cp_new_password').value;
+            const confirm_password = document.getElementById('cp_confirm_password').value;
+            fetch('../backend/change_password.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ current_password, new_password, confirm_password })
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.success) {
+                    Swal.fire({ icon: 'success', title: 'Updated', text: data.message || 'Password updated', confirmButtonColor: '#D4AF37' });
+                    cpForm.reset();
+                    closeChangePasswordModalFn();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Could not update', text: data.message || 'Try again', confirmButtonColor: '#D4AF37' });
+                }
+            }).catch(function() {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Request failed', confirmButtonColor: '#D4AF37' });
+            });
         });
     }
 });

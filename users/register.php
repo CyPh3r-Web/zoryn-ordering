@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $current_time = date('Y-m-d H:i:s');
                 $verification_expires = date('Y-m-d H:i:s', strtotime('+30 minutes'));
-                $role = "user";
+                $role = "waiter";
                 $account_status = "pending";
                 $stmt = $conn->prepare("INSERT INTO users (username, full_name, email, password, role, created_at, updated_at, verification_code, verification_expires, account_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param("ssssssssss", $username, $full_name, $email, $hashed_password, $role, $current_time, $current_time, $verification_code, $verification_expires, $account_status);

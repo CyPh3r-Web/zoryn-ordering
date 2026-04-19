@@ -25,8 +25,8 @@ try {
     $result = $stmt->fetch_assoc();
     $response['active_products'] = $result['total'];
 
-    // Get total customers (users with role 'user')
-    $stmt = $conn->query("SELECT COUNT(*) as total FROM users WHERE role = 'user' AND account_status = 'active'");
+    // Active operational staff (waiter + cashier); admin excluded
+    $stmt = $conn->query("SELECT COUNT(*) as total FROM users WHERE role IN ('waiter', 'cashier') AND account_status = 'active'");
     $result = $stmt->fetch_assoc();
     $response['total_customers'] = $result['total'];
 
