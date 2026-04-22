@@ -246,6 +246,24 @@ if (!isset($_SESSION['user_id'])) {
         .category-tab.active { background: linear-gradient(135deg, #D4AF37, #B8921E); color: #0D0D0D; border-color: transparent; font-weight: 600; }
         .category-tab:hover:not(.active) { border-color: #D4AF37; color: #D4AF37; }
 
+        .products-search-wrap { margin-bottom: 16px; }
+        .products-search-input {
+            width: 100%;
+            border: 1px solid #2E2E2E;
+            background: #121212;
+            color: #E6E6E6;
+            border-radius: 12px;
+            padding: 11px 14px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .products-search-input:focus {
+            border-color: rgba(212,175,55,0.85);
+            box-shadow: 0 0 0 2px rgba(212,175,55,0.15);
+        }
+        .products-search-input::placeholder { color: #777; }
+
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
         .product-card {
             background: linear-gradient(165deg, #181818 0%, #101010 100%);
@@ -288,6 +306,23 @@ if (!isset($_SESSION['user_id'])) {
         .product-card img { width: 148px; height: 172px; max-width: 100%; object-fit: contain; display: block; }
         .product-card h3 { font-size: 14px; color: #E8C84A; margin-bottom: 6px; line-height: 1.35; font-weight: 600; }
         .product-card .price { font-weight: 700; color: #F5D76E; font-size: 15px; letter-spacing: 0.02em; }
+        .product-quantity-controls {
+            margin-top: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .product-quantity-input {
+            width: 56px;
+            border: 1px solid #3a3a3a;
+            background: #0f0f0f;
+            color: #E6E6E6;
+            border-radius: 10px;
+            text-align: center;
+            padding: 6px 4px;
+            font-size: 13px;
+        }
 
         .modal-footer {
             flex-shrink: 0;
@@ -414,6 +449,9 @@ if (!isset($_SESSION['user_id'])) {
             </div>
             <div class="modal-body">
                 <div class="category-tabs"></div>
+                <div class="products-search-wrap">
+                    <input type="text" id="productSearchInput" class="products-search-input" placeholder="Search product name...">
+                </div>
                 <div class="products-grid"></div>
             </div>
             <div class="modal-footer">
@@ -426,8 +464,9 @@ if (!isset($_SESSION['user_id'])) {
         const IS_CASHIER = <?= $zornIsStaff ? 'true' : 'false' ?>;
         const STAFF_ROLE = <?= json_encode($zornStaffRole ?? '') ?>;
         const USER_ID = '<?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : '' ?>';
-        let selectedProducts = new Set();
+        let selectedProducts = new Map();
         let currentCategory = null;
+        let productSearchTerm = '';
         let categoriesData = [];
         let lastOrderData = null;
         function money(n) { return parseFloat(n).toFixed(2); }
@@ -440,6 +479,9 @@ if (!isset($_SESSION['user_id'])) {
         document.querySelector('.close-modal').addEventListener('click', function() {
             document.getElementById('productsModal').style.display = 'none';
             selectedProducts.clear();
+            productSearchTerm = '';
+            const searchInput = document.getElementById('productSearchInput');
+            if (searchInput) searchInput.value = '';
             updateProductSelection();
         });
 
@@ -465,9 +507,29 @@ if (!isset($_SESSION['user_id'])) {
                 data.products.forEach(p => {
                     const card = document.createElement('div');
                     card.className = 'product-card'; card.dataset.productId = p.product_id; card.dataset.categoryId = p.category_id;
+                    card.dataset.productName = (p.product_name || '').toLowerCase();
                     const imgSrc = p.image_path || '../assets/zoryn/zoryn_logo.jpg';
-                    card.innerHTML = `<div class="product-card-img-wrap"><img src="${imgSrc}" alt="${p.product_name}" onerror="this.src='../assets/zoryn/zoryn_logo.jpg';"></div><h3>${p.product_name}</h3><div class="price">₱${money(p.price)}</div>`;
-                    card.onclick = () => toggleProductSelection(p.product_id);
+                    card.innerHTML = `<div class="product-card-img-wrap"><img src="${imgSrc}" alt="${p.product_name}" onerror="this.src='../assets/zoryn/zoryn_logo.jpg';"></div><h3>${p.product_name}</h3><div class="price">₱${money(p.price)}</div><div class="product-quantity-controls"><button class="order-qty-btn modal-qty-btn modal-qty-minus" type="button"><i class="fas fa-minus fa-xs"></i></button><input class="product-quantity-input" type="number" min="1" value="1"><button class="order-qty-btn modal-qty-btn modal-qty-plus" type="button"><i class="fas fa-plus fa-xs"></i></button></div>`;
+                    card.addEventListener('click', function(e) {
+                        if (e.target.closest('.modal-qty-btn') || e.target.classList.contains('product-quantity-input')) return;
+                        toggleProductSelection(p.product_id);
+                    });
+                    const qtyInput = card.querySelector('.product-quantity-input');
+                    const minusBtn = card.querySelector('.modal-qty-minus');
+                    const plusBtn = card.querySelector('.modal-qty-plus');
+                    minusBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        setModalProductQuantity(p.product_id, parseInt(qtyInput.value, 10) - 1);
+                    });
+                    plusBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        setModalProductQuantity(p.product_id, parseInt(qtyInput.value, 10) + 1);
+                    });
+                    qtyInput.addEventListener('click', e => e.stopPropagation());
+                    qtyInput.addEventListener('input', function(e) {
+                        e.stopPropagation();
+                        setModalProductQuantity(p.product_id, parseInt(qtyInput.value, 10), true);
+                    });
                     grid.appendChild(card);
                 });
                 filterProducts(currentCategory);
@@ -476,7 +538,12 @@ if (!isset($_SESSION['user_id'])) {
 
         function filterProducts(categoryId) {
             currentCategory = categoryId;
-            document.querySelectorAll('.product-card').forEach(p => p.style.display = (categoryId === null || p.dataset.categoryId === categoryId.toString()) ? 'block' : 'none');
+            const normalizedSearch = productSearchTerm.trim().toLowerCase();
+            document.querySelectorAll('.product-card').forEach(p => {
+                const categoryMatch = categoryId === null || p.dataset.categoryId === categoryId.toString();
+                const searchMatch = normalizedSearch === '' || (p.dataset.productName || '').includes(normalizedSearch);
+                p.style.display = (categoryMatch && searchMatch) ? 'block' : 'none';
+            });
             document.querySelectorAll('.category-tab').forEach(t => {
                 t.classList.remove('active');
                 if ((categoryId === null && t.textContent === 'All') || (categoryId !== null && t.textContent === categoriesData.find(c => c.category_id === categoryId)?.category_name)) t.classList.add('active');
@@ -484,21 +551,68 @@ if (!isset($_SESSION['user_id'])) {
         }
 
         function toggleProductSelection(productId) {
-            const card = document.querySelector(`.product-card[data-product-id="${productId}"]`);
-            if (selectedProducts.has(productId)) { selectedProducts.delete(productId); card.classList.remove('selected'); }
-            else { selectedProducts.add(productId); card.classList.add('selected'); }
+            const pid = String(productId);
+            const card = document.querySelector(`.product-card[data-product-id="${pid}"]`);
+            if (selectedProducts.has(pid)) {
+                selectedProducts.delete(pid);
+                card.classList.remove('selected');
+            } else {
+                const qtyInput = card ? card.querySelector('.product-quantity-input') : null;
+                const qty = qtyInput ? Math.max(1, parseInt(qtyInput.value, 10) || 1) : 1;
+                selectedProducts.set(pid, qty);
+                card.classList.add('selected');
+            }
+        }
+
+        function setModalProductQuantity(productId, nextQty, preserveManualInput = false) {
+            const pid = String(productId);
+            const card = document.querySelector(`.product-card[data-product-id="${pid}"]`);
+            if (!card) return;
+            const qtyInput = card.querySelector('.product-quantity-input');
+            let qty = parseInt(nextQty, 10);
+            if (Number.isNaN(qty) || qty < 1) qty = 1;
+            if (!preserveManualInput || qtyInput.value === '' || parseInt(qtyInput.value, 10) !== qty) qtyInput.value = qty;
+            if (selectedProducts.has(pid)) selectedProducts.set(pid, qty);
         }
 
         function updateProductSelection() {
-            document.querySelectorAll('.product-card').forEach(p => p.classList.toggle('selected', selectedProducts.has(p.dataset.productId)));
+            document.querySelectorAll('.product-card').forEach(p => {
+                const pid = p.dataset.productId;
+                p.classList.toggle('selected', selectedProducts.has(pid));
+                const qtyInput = p.querySelector('.product-quantity-input');
+                if (!qtyInput) return;
+                const selectedQty = selectedProducts.get(pid);
+                qtyInput.value = selectedQty ? selectedQty : 1;
+            });
         }
 
         function confirmSelectedProducts() {
             if (selectedProducts.size === 0) { Swal.fire({ title: 'No Products', text: 'Select at least one product', icon: 'warning', confirmButtonColor: '#D4AF37' }); return; }
-            fetch('../backend/order_manager.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `action=add_items&product_ids=${JSON.stringify(Array.from(selectedProducts))}` })
+            const selectedEntries = Array.from(selectedProducts.entries());
+            const selectedProductIds = selectedEntries.map(([id]) => id);
+            fetch('../backend/order_manager.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `action=add_items&product_ids=${JSON.stringify(selectedProductIds)}` })
             .then(r => r.json()).then(data => {
                 if (data.error) { Swal.fire({ title: 'Error', text: data.error, icon: 'error', confirmButtonColor: '#D4AF37' }); }
-                else { document.getElementById('productsModal').style.display = 'none'; selectedProducts.clear(); loadOrderDetails(); Swal.fire({ title: 'Added!', text: 'Products added to order', icon: 'success', confirmButtonColor: '#D4AF37' }); }
+                else {
+                    const updates = selectedEntries
+                        .filter(([, qty]) => qty > 1)
+                        .map(([productId, qty]) => fetch('../backend/order_manager.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: `action=update_quantity&product_id=${productId}&quantity=${qty}`
+                        }).then(r => r.json()));
+                    Promise.all(updates)
+                        .then(() => {
+                            document.getElementById('productsModal').style.display = 'none';
+                            selectedProducts.clear();
+                            productSearchTerm = '';
+                            const searchInput = document.getElementById('productSearchInput');
+                            if (searchInput) searchInput.value = '';
+                            loadOrderDetails();
+                            Swal.fire({ title: 'Added!', text: 'Products added to order', icon: 'success', confirmButtonColor: '#D4AF37' });
+                        })
+                        .catch(() => Swal.fire({ title: 'Error', text: 'Products were added but quantity update failed', icon: 'warning', confirmButtonColor: '#D4AF37' }));
+                }
             }).catch(e => Swal.fire({ title: 'Error', text: 'Failed to add products', icon: 'error', confirmButtonColor: '#D4AF37' }));
         }
 
@@ -807,12 +921,19 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
             loadOrderDetails();
             const typeSel = document.getElementById('order-type');
             const tableField = document.getElementById('table-number-field');
+            const searchInput = document.getElementById('productSearchInput');
             if (typeSel && tableField) {
                 const syncTableVisibility = () => {
                     tableField.style.display = typeSel.value === 'dine-in' ? '' : 'none';
                 };
                 typeSel.addEventListener('change', syncTableVisibility);
                 syncTableVisibility();
+            }
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    productSearchTerm = this.value || '';
+                    filterProducts(currentCategory);
+                });
             }
         });
 

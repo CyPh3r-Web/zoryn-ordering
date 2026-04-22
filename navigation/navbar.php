@@ -16,8 +16,28 @@ if ($canValidateAuth) {
 }
 
 require_once '../backend/dbconn.php';
+require_once '../backend/shift_access.php';
 $profilePicture = null;
 $userEmail = null;
+$cashierShiftAccess = null;
+
+if (isset($_SESSION['user_id']) && strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier') {
+    $shiftAccess = zoryn_get_cashier_shift_access($conn, (int) $_SESSION['user_id']);
+    $cashierShiftAccess = $shiftAccess;
+    if (!$shiftAccess['is_within_shift'] && !$shiftAccess['is_grace_period']) {
+        $_SESSION = [];
+        if (session_id() !== '' || isset($_COOKIE[session_name()])) {
+            setcookie(session_name(), '', time() - 3600, '/');
+        }
+        session_destroy();
+        if (!headers_sent()) {
+            header('Location: ../index.php');
+            exit();
+        }
+    } else {
+        $_SESSION['active_shift_id'] = $shiftAccess['active_shift_id'];
+    }
+}
 
 if (isset($_SESSION['user_id'])) {
 try {
@@ -262,6 +282,79 @@ document.addEventListener('DOMContentLoaded', function() {
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
     const userProfile = document.getElementById('userProfile');
     const profileDropdown = document.getElementById('profileDropdown');
+    const cashierShiftAccess = <?php echo json_encode($cashierShiftAccess ?? null); ?>;
+
+    const playShiftReminderSound = () => {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+            gainNode.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + 0.3);
+        } catch (e) {
+            // Silent fallback if browser blocks autoplay/audio context.
+        }
+    };
+
+    if (cashierShiftAccess && cashierShiftAccess.status === 'active') {
+        const alertMinutes = [30, 20, 10, 5];
+        const shiftId = Number(cashierShiftAccess.active_shift_id || 0);
+        const keyPrefix = `shift_warn_${shiftId}_`;
+        const showWarning = (mins) => {
+            playShiftReminderSound();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Shift Reminder',
+                text: `Your shift will end in ${mins} minute${mins === 1 ? '' : 's'}.`,
+                confirmButtonColor: '#D4AF37',
+                background: '#1F1F1F',
+                color: '#E5E5E5'
+            });
+        };
+
+        const evaluateAlerts = () => {
+            const totalSec = Number(cashierShiftAccess.seconds_until_end || 0);
+            const elapsed = Math.floor((Date.now() - pageLoadMs) / 1000);
+            const remainingSec = Math.max(0, totalSec - elapsed);
+            alertMinutes.forEach((m) => {
+                const threshold = m * 60;
+                if (remainingSec <= threshold) {
+                    const key = keyPrefix + String(m);
+                    if (localStorage.getItem(key) !== '1') {
+                        localStorage.setItem(key, '1');
+                        showWarning(m);
+                    }
+                }
+            });
+        };
+        const pageLoadMs = Date.now();
+        evaluateAlerts();
+        setInterval(evaluateAlerts, 15000);
+    }
+
+    if (cashierShiftAccess && cashierShiftAccess.status === 'grace') {
+        playShiftReminderSound();
+        Swal.fire({
+            icon: 'info',
+            title: 'Shift Ended',
+            text: 'Your shift has ended. You have 5 minutes to submit your cash count.',
+            confirmButtonColor: '#D4AF37',
+            background: '#1F1F1F',
+            color: '#E5E5E5'
+        });
+    }
 
     function addNotification(notification) {
         const notificationItem = document.createElement('div');

@@ -80,6 +80,10 @@ if ($verification_code === $user['twofa_code']) {
     
     // Set 2FA as verified and complete login
     $_SESSION['2fa_verified'] = true;
+    if (isset($_SESSION['2fa_role'])) {
+        $_SESSION['role'] = $_SESSION['2fa_role'];
+        unset($_SESSION['2fa_role']);
+    }
     unset($_SESSION['2fa_pending']);
     
     echo json_encode(['success' => true]);

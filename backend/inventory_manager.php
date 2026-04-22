@@ -40,27 +40,11 @@ class InventoryManager {
     // Get all ingredients with their current stock and total used
     public function getAllIngredients() {
         try {
-            // First check if the ingredient_categories table exists
-            $checkTable = $this->conn->query("SHOW TABLES LIKE 'ingredient_categories'");
-            if ($checkTable->num_rows > 0) {
-                $query = "SELECT i.*, c.category_name 
-                         FROM ingredients i 
-                         JOIN ingredient_categories c ON i.category_id = c.category_id 
-                         ORDER BY i.category_id, i.ingredient_name";
-            } else {
-                $query = "SELECT i.*, 
-                         CASE i.category_id
-                             WHEN 1 THEN 'Coffee'
-                             WHEN 2 THEN 'Syrup'
-                             WHEN 3 THEN 'Powder'
-                             WHEN 4 THEN 'Dairy'
-                             WHEN 5 THEN 'Topping'
-                             WHEN 6 THEN 'Other'
-                             ELSE 'Unknown'
-                         END as category_name
-                         FROM ingredients i 
-                         ORDER BY i.category_id, i.ingredient_name";
-            }
+            // Same source as ingredients elsewhere (e.g. fetch_data.php, fetch_ingredient_usage.php)
+            $query = "SELECT i.*, c.category_name 
+                     FROM ingredients i 
+                     LEFT JOIN categories c ON i.category_id = c.category_id 
+                     ORDER BY i.category_id, i.ingredient_name";
             
             $result = $this->conn->query($query);
             if (!$result) {

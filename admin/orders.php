@@ -3,8 +3,12 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin_login.php");
+$userRole = strtolower($_SESSION['role'] ?? '');
+$isAdminUser = isset($_SESSION['admin_id']);
+$isKitchenUser = isset($_SESSION['user_id']) && in_array($userRole, ['kitchen', 'crew'], true);
+
+if (!$isAdminUser && !$isKitchenUser) {
+    header("Location: ../index.php");
     exit();
 }
 ?>
@@ -361,6 +365,18 @@ if (!isset($_SESSION['admin_id'])) {
             margin-top: 10px; font-family: 'Poppins', sans-serif; transition: all 0.2s;
         }
         .mark-paid-btn:hover { background: linear-gradient(135deg, #FFDF7D, #D3A533); transform: translateY(-1px); }
+        .payment-select {
+            width: 100%;
+            margin-top: 12px;
+            background: rgba(255,255,255,0.06);
+            color: #f1f1f1;
+            border: 1px solid rgba(212,175,55,0.28);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
 
         .verify-btn {
             margin-top: 15px; padding: 10px 20px;
@@ -376,6 +392,30 @@ if (!isset($_SESSION['admin_id'])) {
 
         .payment-proof-modal { max-width: 90vw !important; max-height: 90vh !important; }
         .payment-proof-modal .swal2-image { max-width: 100%; max-height: 80vh; object-fit: contain; }
+
+        /* Kitchen/Crew full-width landscape table layout */
+        body.kitchen-layout .main-content {
+            margin-left: 0 !important;
+            padding: 14px 16px 18px !important;
+        }
+        body.kitchen-layout .orders-container {
+            max-width: 100% !important;
+            width: 100%;
+        }
+        body.kitchen-layout .orders-table-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            resize: horizontal;
+            min-height: 360px;
+        }
+        body.kitchen-layout .orders-table {
+            min-width: 980px;
+        }
+        body.kitchen-layout .orders-table thead th,
+        body.kitchen-layout .orders-table tbody td {
+            white-space: nowrap;
+        }
 
         @media (max-width: 680px) {
             .product-modal-header {
@@ -393,9 +433,18 @@ if (!isset($_SESSION['admin_id'])) {
         }
     </style>
 </head>
-<body>
-    <?php include("../navigation/admin-navbar.php");?>
-    <?php include("../navigation/admin-sidebar.php");?>
+<body class="<?php echo $isKitchenUser ? 'kitchen-layout' : ''; ?>">
+    <?php if ($isAdminUser): ?>
+        <?php include("../navigation/admin-navbar.php");?>
+        <?php include("../navigation/admin-sidebar.php");?>
+    <?php else: ?>
+        <header style="padding: 14px 18px; border-bottom: 1px solid rgba(212,175,55,0.2); background: #0d0d0d; color: #f4d26b;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <div style="font-weight:600;">Kitchen Orders</div>
+                <a href="logout.php" style="color:#f4d26b; text-decoration:none;">Logout</a>
+            </div>
+        </header>
+    <?php endif; ?>
     
     <div class="main-content">
         <div class="orders-container">
@@ -421,7 +470,7 @@ if (!isset($_SESSION['admin_id'])) {
                             <th>Customer</th>
                             <th>Date</th>
                             <th>Type</th>
-                            <th>Total</th>
+                            <?php if ($isAdminUser): ?><th>Total</th><?php endif; ?>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -434,7 +483,9 @@ if (!isset($_SESSION['admin_id'])) {
     </div>
     
     <script>
+        const IS_KITCHEN_VIEW = <?php echo $isKitchenUser ? 'true' : 'false'; ?>;
         function canEditOrderLines(orderStatus) {
+            if (IS_KITCHEN_VIEW) return false;
             const s = (orderStatus || '').toLowerCase();
             return s === 'pending' || s === 'preparing';
         }
@@ -442,18 +493,30 @@ if (!isset($_SESSION['admin_id'])) {
         window.removeOrderLine = function(orderId, orderItemId) {
             Swal.fire({
                 title: 'Remove this item?',
-                text: 'It will be taken off the order and stock will be restored.',
+                html: `
+                    <p style="margin-bottom:10px;">It will be taken off the order and stock will be restored.</p>
+                    <input id="adminPinInput" type="password" class="swal2-input" inputmode="numeric" maxlength="8" placeholder="Enter admin PIN">
+                `,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#2E2E2E',
-                confirmButtonText: 'Yes, remove it'
+                confirmButtonText: 'Yes, remove it',
+                preConfirm: () => {
+                    const pin = (document.getElementById('adminPinInput')?.value || '').trim();
+                    if (!/^\d{4,8}$/.test(pin)) {
+                        Swal.showValidationMessage('Admin PIN is required (4-8 digits).');
+                        return false;
+                    }
+                    return pin;
+                }
             }).then((result) => {
                 if (!result.isConfirmed) return;
+                const adminPin = result.value;
                 fetch('../backend/order_functions.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `action=remove_order_item&order_id=${orderId}&order_item_id=${orderItemId}`
+                    body: `action=remove_order_item&order_id=${orderId}&order_item_id=${orderItemId}&admin_pin=${encodeURIComponent(adminPin)}`
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -545,31 +608,28 @@ if (!isset($_SESSION['admin_id'])) {
             });
         };
 
-        window.markAsPaid = function(orderId, buttonElement) {
+        window.updatePaymentStatus = function(orderId, paymentStatus) {
             Swal.fire({
-                title: 'Mark as Paid',
-                text: 'Are you sure you want to mark this order as paid?',
+                title: 'Update payment status?',
+                text: `Set payment status to "${paymentStatus}"?`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#D4AF37',
                 cancelButtonColor: '#2E2E2E',
-                confirmButtonText: 'Yes, mark as paid!'
+                confirmButtonText: 'Yes, update'
             }).then((result) => {
                 if (!result.isConfirmed) return;
                 fetch('../backend/payment_functions.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `action=mark_as_paid&order_id=${orderId}`
+                    body: `action=update_payment_status&order_id=${orderId}&payment_status=${encodeURIComponent(paymentStatus)}`
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        if (buttonElement && buttonElement.parentNode) {
-                            buttonElement.parentNode.removeChild(buttonElement);
-                        }
                         Swal.fire({
                             title: 'Success!',
-                            text: 'Order has been marked as paid',
+                            text: 'Payment status updated',
                             icon: 'success',
                             confirmButtonColor: '#D4AF37'
                         }).then(() => {
@@ -578,7 +638,7 @@ if (!isset($_SESSION['admin_id'])) {
                     } else {
                         Swal.fire({
                             title: 'Error',
-                            text: data.message || 'Failed to mark order as paid',
+                            text: data.message || 'Failed to update payment status',
                             icon: 'error',
                             confirmButtonColor: '#D4AF37'
                         });
@@ -587,7 +647,7 @@ if (!isset($_SESSION['admin_id'])) {
                 .catch(() => {
                     Swal.fire({
                         title: 'Error',
-                        text: 'An error occurred while marking the order as paid',
+                        text: 'An error occurred while updating payment status',
                         icon: 'error',
                         confirmButtonColor: '#D4AF37'
                     });
@@ -598,18 +658,30 @@ if (!isset($_SESSION['admin_id'])) {
         window.cancelWholeOrder = function(orderId) {
             Swal.fire({
                 title: 'Cancel this order?',
-                text: 'The full order will be marked cancelled and ingredients will be restocked.',
+                html: `
+                    <p style="margin-bottom:10px;">The full order will be marked cancelled and ingredients will be restocked.</p>
+                    <input id="adminPinCancelInput" type="password" class="swal2-input" inputmode="numeric" maxlength="8" placeholder="Enter admin PIN">
+                `,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#2E2E2E',
-                confirmButtonText: 'Yes, cancel order'
+                confirmButtonText: 'Yes, cancel order',
+                preConfirm: () => {
+                    const pin = (document.getElementById('adminPinCancelInput')?.value || '').trim();
+                    if (!/^\d{4,8}$/.test(pin)) {
+                        Swal.showValidationMessage('Admin PIN is required (4-8 digits).');
+                        return false;
+                    }
+                    return pin;
+                }
             }).then((result) => {
                 if (!result.isConfirmed) return;
+                const adminPin = result.value;
                 fetch('../backend/order_functions.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `action=cancel_order&order_id=${orderId}`
+                    body: `action=cancel_order&order_id=${orderId}&admin_pin=${encodeURIComponent(adminPin)}`
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -699,7 +771,7 @@ if (!isset($_SESSION['admin_id'])) {
                                 <td>${order.customer_name}</td>
                                 <td>${new Date(order.created_at).toLocaleString()}</td>
                                 <td>${renderTypeBadge(order.order_type, order.table_number)}</td>
-                                <td>₱${parseFloat(order.total_amount).toFixed(2)}</td>
+                                ${IS_KITCHEN_VIEW ? '' : `<td>₱${parseFloat(order.total_amount).toFixed(2)}</td>`}
                                 <td class="action-buttons">
                                     <button class="action-btn view" data-order-id="${order.order_id}" data-action="view" title="View Order Details">
                                         <i class="fas fa-eye"></i>
@@ -776,8 +848,8 @@ if (!isset($_SESSION['admin_id'])) {
                                         <h4 class="order-item-name">${item.product_name}</h4>
                                         <div class="order-item-meta">
                                             <span class="order-item-pill">Qty: ${item.quantity}</span>
-                                            <span class="order-item-pill">Price: ₱${parseFloat(item.price).toFixed(2)}</span>
-                                            <span class="order-item-pill">Subtotal: ₱${parseFloat(item.price * item.quantity).toFixed(2)}</span>
+                                            ${IS_KITCHEN_VIEW ? '' : `<span class="order-item-pill">Price: ₱${parseFloat(item.price).toFixed(2)}</span>`}
+                                            ${IS_KITCHEN_VIEW ? '' : `<span class="order-item-pill">Subtotal: ₱${parseFloat(item.price * item.quantity).toFixed(2)}</span>`}
                                         </div>
                                     </div>
                                     ${canEditOrderLines(order.order_status) ? `
@@ -797,13 +869,18 @@ if (!isset($_SESSION['admin_id'])) {
                             ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)
                             : 'Pending';
                         const payStatusCss = order.payment_status === 'verified' ? 'text-success' : 'text-warning';
-                        const canMarkPayment = order.order_status !== 'cancelled' && order.payment_status !== 'verified';
+                        const canMarkPayment = !IS_KITCHEN_VIEW && order.order_status !== 'cancelled' && order.payment_status !== 'verified';
 
-                        const cashAction = canMarkPayment && (pt === 'cash' || !paymentTypeRaw) ? `
+                        const paymentStatusRaw = (order.payment_status || '').toLowerCase();
+                        const paymentSelectValue = paymentStatusRaw === 'verified' ? 'paid' : (paymentStatusRaw || 'unpaid');
+                        const cashAction = canMarkPayment ? `
                             <div class="proof-of-payment">
-                                <button type="button" class="mark-paid-btn" onclick="markAsPaid(${order.order_id}, this)">
-                                    <i class="fas fa-money-bill-wave"></i> Mark as Paid
-                                </button>
+                                <label style="display:block; margin-bottom:6px; font-size:12px; color:#9d9d9d;">Payment Status</label>
+                                <select class="payment-select" onchange="updatePaymentStatus(${order.order_id}, this.value)">
+                                    <option value="unpaid" ${paymentSelectValue === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+                                    <option value="pending" ${paymentSelectValue === 'pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="paid" ${paymentSelectValue === 'paid' ? 'selected' : ''}>Paid</option>
+                                </select>
                             </div>` : '';
 
                         const onlineProof = canMarkPayment && pt !== 'cash' && order.proof_of_payment ? `
@@ -822,7 +899,7 @@ if (!isset($_SESSION['admin_id'])) {
                                 <p class="view-empty-note">Awaiting payment proof upload from the customer.</p>
                             </div>` : '';
 
-                        const paymentHtml = `
+                        const paymentHtml = IS_KITCHEN_VIEW ? '' : `
                             <div class="product-section-card">
                                 <h3 class="product-section-title">Payment Details</h3>
                                 <div class="product-info-section">
@@ -904,10 +981,11 @@ if (!isset($_SESSION['admin_id'])) {
                                         <div class="order-items-list">
                                             ${itemsHtml}
                                         </div>
+                                        ${IS_KITCHEN_VIEW ? '' : `
                                         <div class="order-total-bar">
                                             <div class="order-total-label">Total Amount</div>
                                             <div class="order-total-value">₱${parseFloat(order.total_amount).toFixed(2)}</div>
-                                        </div>
+                                        </div>`}
                                     </div>
 
                                     ${paymentHtml}

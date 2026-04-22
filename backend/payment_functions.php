@@ -4,10 +4,19 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
 require_once 'dbconn.php';
+require_once 'shift_access.php';
 session_start();
 
 // Handle different actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!empty($_SESSION['user_id']) && strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier') {
+        $access = zoryn_get_cashier_shift_access($conn, (int) $_SESSION['user_id']);
+        if (!$access['is_within_shift']) {
+            echo json_encode(['success' => false, 'message' => 'Cashier shift is not active']);
+            exit;
+        }
+    }
+
     $action = $_POST['action'] ?? '';
 
     switch ($action) {
@@ -25,6 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
         case 'mark_as_paid':
             markAsPaid();
+            break;
+
+        case 'update_payment_status':
+            updatePaymentStatus();
+            break;
+
+        case 'update_payment_method':
+            updatePaymentMethod();
             break;
             
         case 'upload_payment_proof':
@@ -128,7 +145,7 @@ function processPayment() {
         }
     } catch (Exception $e) {
         // Rollback transaction on error
-        if ($conn->inTransaction()) {
+        if ($conn && method_exists($conn, 'rollback')) {
             $conn->rollback();
         }
         echo json_encode([
@@ -252,7 +269,7 @@ function verifyPayment() {
         }
     } catch (Exception $e) {
         // Rollback transaction on error
-        if ($conn->inTransaction()) {
+        if ($conn && method_exists($conn, 'rollback')) {
             $conn->rollback();
         }
         echo json_encode([
@@ -351,7 +368,7 @@ function uploadPaymentProof() {
         }
     } catch (Exception $e) {
         // Rollback transaction on error
-        if ($conn->inTransaction()) {
+        if ($conn && method_exists($conn, 'rollback')) {
             $conn->rollback();
         }
         echo json_encode([
@@ -425,13 +442,93 @@ function markAsPaid() {
         }
     } catch (Exception $e) {
         // Rollback transaction on error
-        if ($conn->inTransaction()) {
+        if ($conn && method_exists($conn, 'rollback')) {
             $conn->rollback();
         }
         echo json_encode([
             'success' => false,
             'message' => $e->getMessage()
         ]);
+    }
+}
+
+function updatePaymentStatus() {
+    global $conn;
+
+    try {
+        if (empty($_SESSION['admin_id']) && (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'cashier')) {
+            throw new Exception('Unauthorized');
+        }
+        if (!isset($_POST['order_id']) || !isset($_POST['payment_status'])) {
+            throw new Exception('Order and payment status are required');
+        }
+
+        $orderId = (int) $_POST['order_id'];
+        $statusInput = strtolower(trim((string) $_POST['payment_status']));
+        $allowed = ['unpaid', 'pending', 'paid', 'verified'];
+        if (!in_array($statusInput, $allowed, true)) {
+            throw new Exception('Invalid payment status');
+        }
+
+        // Keep compatibility with existing code that checks for "verified".
+        $dbStatus = ($statusInput === 'paid') ? 'verified' : $statusInput;
+
+        $conn->begin_transaction();
+
+        $stmt = $conn->prepare("SELECT user_id, total_amount, payment_status FROM orders WHERE order_id = ?");
+        $stmt->bind_param("i", $orderId);
+        $stmt->execute();
+        $order = $stmt->get_result()->fetch_assoc();
+        if (!$order) {
+            throw new Exception('Order not found');
+        }
+
+        $upd = $conn->prepare("UPDATE orders SET payment_status = ?, updated_at = NOW() WHERE order_id = ?");
+        $upd->bind_param("si", $dbStatus, $orderId);
+        $upd->execute();
+
+        if ($dbStatus === 'verified' && ($order['payment_status'] ?? '') !== 'verified') {
+            $message = "Payment of ₱{$order['total_amount']} for your order has been received and verified.";
+            $n = $conn->prepare("INSERT INTO notifications (user_id, order_id, message, is_read, created_at) VALUES (?, ?, ?, 0, NOW())");
+            $n->bind_param("iis", $order['user_id'], $orderId, $message);
+            $n->execute();
+        }
+
+        $conn->commit();
+        echo json_encode(['success' => true, 'message' => 'Payment status updated']);
+    } catch (Exception $e) {
+        if (method_exists($conn, 'rollback')) {
+            $conn->rollback();
+        }
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function updatePaymentMethod() {
+    global $conn;
+
+    try {
+        if (empty($_SESSION['admin_id']) && (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'cashier')) {
+            throw new Exception('Unauthorized');
+        }
+        if (!isset($_POST['order_id']) || !isset($_POST['payment_type'])) {
+            throw new Exception('Order and payment method are required');
+        }
+
+        $orderId = (int) $_POST['order_id'];
+        $paymentType = strtolower(trim((string) $_POST['payment_type']));
+        $allowed = ['cash', 'online', 'gcash', 'maya', 'card', 'bank_transfer'];
+        if (!in_array($paymentType, $allowed, true)) {
+            throw new Exception('Invalid payment method');
+        }
+
+        $stmt = $conn->prepare("UPDATE orders SET payment_type = ?, updated_at = NOW() WHERE order_id = ?");
+        $stmt->bind_param("si", $paymentType, $orderId);
+        $stmt->execute();
+
+        echo json_encode(['success' => true, 'message' => 'Payment method updated']);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
 }
 ?> 

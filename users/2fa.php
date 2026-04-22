@@ -167,6 +167,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            const redirectAfter2FA = <?php echo json_encode((in_array(strtolower($_SESSION['role'] ?? $_SESSION['2fa_role'] ?? ''), ['kitchen', 'crew'], true)) ? '../admin/orders.php' : 'home.php'); ?>;
             const timeLeft = parseInt(document.getElementById('timeLeft').value);
             const display = document.querySelector('#countdown');
             startTimer(timeLeft, display);
@@ -206,7 +207,7 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        window.location.href = 'home.php';
+                        window.location.href = redirectAfter2FA;
                     } else {
                         showError(data.message || 'Invalid verification code');
                         verifyBtn.disabled = false;

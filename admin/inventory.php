@@ -151,7 +151,6 @@ require_once '../backend/dbconn.php';
                 .then(data => {
                     if (data.success && Array.isArray(data.data)) {
                         displayIngredients(data.data);
-                        populateCategoryFilter(data.data);
                     } else {
                         console.error('Invalid data format:', data);
                         Swal.fire({
@@ -191,7 +190,7 @@ require_once '../backend/dbconn.php';
                 }
                 
                 ingredients.forEach(ingredient => {
-                    if (categoryFilterValue && ingredient.category_id != categoryFilterValue) return;
+                    if (categoryFilterValue && String(ingredient.category_id) !== categoryFilterValue) return;
                     
                     // Convert stock to number
                     const stock = parseFloat(ingredient.stock);
@@ -318,30 +317,34 @@ require_once '../backend/dbconn.php';
                 return Math.max(0, Math.min(100, Math.round((stockNum / cap100) * 100)));
             }
 
-            // Populate category filter
-            function populateCategoryFilter(ingredients) {
-                if (!categoryFilter || !Array.isArray(ingredients)) {
-                    console.error('Category filter element not found or invalid ingredients data');
-                    return;
+            // Category dropdown: same `categories` table as Products / Usage Analysis (fetch_data.php)
+            function populateCategoryFilter() {
+                if (!categoryFilter) {
+                    console.error('Category filter element not found');
+                    return Promise.resolve();
                 }
-                
-                // Define the categories with their IDs and names
-                const categories = [
-                    { id: 1, name: 'Coffee' },
-                    { id: 2, name: 'Syrup' },
-                    { id: 3, name: 'Powder' },
-                    { id: 4, name: 'Dairy' },
-                    { id: 5, name: 'Topping' },
-                    { id: 6, name: 'Other' }
-                ];
-                
-                categoryFilter.innerHTML = '<option value="">All Categories</option>';
-                categories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category.id;
-                    option.textContent = category.name;
-                    categoryFilter.appendChild(option);
-                });
+                const previous = categoryFilter.value;
+                return fetch('../backend/fetch_data.php?action=ingredient-categories')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success || !Array.isArray(data.data)) {
+                            console.error('Invalid ingredient categories response:', data);
+                            return;
+                        }
+                        categoryFilter.innerHTML = '<option value="">All Categories</option>';
+                        data.data.forEach(cat => {
+                            const option = document.createElement('option');
+                            option.value = String(cat.category_id);
+                            option.textContent = cat.category_name;
+                            categoryFilter.appendChild(option);
+                        });
+                        if (previous && [...categoryFilter.options].some(o => o.value === previous)) {
+                            categoryFilter.value = previous;
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error loading categories:', err);
+                    });
             }
 
             // Open update modal
@@ -555,8 +558,8 @@ require_once '../backend/dbconn.php';
                 return 'GOOD';
             }
 
-            // Initial load
-            loadIngredients();
+            // Initial load: categories from DB, then stock rows (matches Usage Analysis category names)
+            populateCategoryFilter().then(() => loadIngredients());
         });
     </script>
 </body>

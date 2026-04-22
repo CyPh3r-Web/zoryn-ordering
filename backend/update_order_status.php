@@ -1,10 +1,20 @@
 <?php
 require_once 'dbconn.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+    exit;
+}
+
+$role = strtolower($_SESSION['role'] ?? '');
+$canUpdateOrders = !empty($_SESSION['admin_id']) || (!empty($_SESSION['user_id']) && in_array($role, ['cashier', 'kitchen', 'crew'], true));
+if (!$canUpdateOrders) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 

@@ -52,6 +52,14 @@ if ($isStaff):
                     <span class="font-medium">Orders</span>
                 </a>
             </li>
+            <li class="cashier-item <?= isActiveCashier('sales.php') ?>">
+                <a href="sales.php" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-[#B0B0B0] hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all duration-200 group">
+                    <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#D4AF37]/5 group-hover:bg-[#D4AF37]/15 transition-all duration-200">
+                        <i class="fas fa-chart-line text-xs text-[#D4AF37]/60 group-hover:text-[#D4AF37] transition-colors"></i>
+                    </div>
+                    <span class="font-medium">Sales Reading</span>
+                </a>
+            </li>
             <?php endif; ?>
         </ul>
     </div>

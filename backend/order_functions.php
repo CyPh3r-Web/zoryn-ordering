@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 
 require_once 'dbconn.php';
 require_once 'update_inventory.php';
+require_once 'shift_access.php';
 session_start();
 
 function assertCanManageOrders() {
@@ -15,6 +16,128 @@ function assertCanManageOrders() {
         return true;
     }
     return false;
+}
+
+function canViewOrders() {
+    if (!empty($_SESSION['admin_id'])) {
+        return true;
+    }
+    if (!empty($_SESSION['user_id']) && in_array(strtolower($_SESSION['role'] ?? ''), ['cashier', 'kitchen', 'crew'], true)) {
+        return true;
+    }
+    return false;
+}
+
+function hasCashierShiftAccess() {
+    global $conn;
+    if (!empty($_SESSION['user_id']) && strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier') {
+        $access = zoryn_get_cashier_shift_access($conn, (int) $_SESSION['user_id']);
+        return $access['is_within_shift'];
+    }
+    return true;
+}
+
+function isKitchenRoleSession() {
+    return !empty($_SESSION['user_id']) && in_array(strtolower($_SESSION['role'] ?? ''), ['kitchen', 'crew'], true);
+}
+
+function currentActorId() {
+    if (!empty($_SESSION['admin_id'])) {
+        return (int) $_SESSION['admin_id'];
+    }
+    if (!empty($_SESSION['user_id'])) {
+        return (int) $_SESSION['user_id'];
+    }
+    return null;
+}
+
+function verifyAdminOverridePin($pin) {
+    global $conn;
+    $pin = trim((string) $pin);
+    if ($pin === '') {
+        return null;
+    }
+
+    $stmt = $conn->prepare("
+        SELECT user_id, admin_override_pin_hash
+        FROM users
+        WHERE role = 'admin'
+          AND account_status = 'active'
+          AND admin_override_pin_hash IS NOT NULL
+          AND admin_override_pin_hash <> ''
+        ORDER BY user_id ASC
+    ");
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($admin = $result->fetch_assoc()) {
+        if (!empty($admin['admin_override_pin_hash']) && password_verify($pin, $admin['admin_override_pin_hash'])) {
+            return (int) $admin['user_id'];
+        }
+    }
+
+    return null;
+}
+
+function hasConfiguredAdminOverridePin() {
+    global $conn;
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) AS total
+        FROM users
+        WHERE role = 'admin'
+          AND account_status = 'active'
+          AND admin_override_pin_hash IS NOT NULL
+          AND admin_override_pin_hash <> ''
+    ");
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return ((int) ($row['total'] ?? 0)) > 0;
+}
+
+function insertOrderChangeLog($payload) {
+    global $conn;
+    if (!$conn->query("SHOW TABLES LIKE 'order_change_logs'")->num_rows) {
+        return;
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO order_change_logs
+        (order_id, change_type, order_item_id, product_id, qty_before, qty_after, amount_before, amount_after, reason, requested_by, approved_by, pin_verified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    if (!$stmt) {
+        return;
+    }
+
+    $orderId = (int) ($payload['order_id'] ?? 0);
+    $changeType = (string) ($payload['change_type'] ?? '');
+    $orderItemId = isset($payload['order_item_id']) ? (int) $payload['order_item_id'] : null;
+    $productId = isset($payload['product_id']) ? (int) $payload['product_id'] : null;
+    $qtyBefore = isset($payload['qty_before']) ? (int) $payload['qty_before'] : null;
+    $qtyAfter = isset($payload['qty_after']) ? (int) $payload['qty_after'] : null;
+    $amountBefore = isset($payload['amount_before']) ? (float) $payload['amount_before'] : null;
+    $amountAfter = isset($payload['amount_after']) ? (float) $payload['amount_after'] : null;
+    $reason = isset($payload['reason']) ? (string) $payload['reason'] : null;
+    $requestedBy = isset($payload['requested_by']) ? (int) $payload['requested_by'] : null;
+    $approvedBy = isset($payload['approved_by']) ? (int) $payload['approved_by'] : null;
+    $pinVerified = !empty($payload['pin_verified']) ? 1 : 0;
+
+    $stmt->bind_param(
+        "isiiiiddsiii",
+        $orderId,
+        $changeType,
+        $orderItemId,
+        $productId,
+        $qtyBefore,
+        $qtyAfter,
+        $amountBefore,
+        $amountAfter,
+        $reason,
+        $requestedBy,
+        $approvedBy,
+        $pinVerified
+    );
+    $stmt->execute();
 }
 
 /**
@@ -59,6 +182,11 @@ function recalculateOrderTotals($conn, $order_id) {
 
 // Handle different actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!hasCashierShiftAccess()) {
+        echo json_encode(['success' => false, 'message' => 'Cashier shift is not active']);
+        exit;
+    }
+
     $action = $_POST['action'] ?? '';
 
     switch ($action) {
@@ -110,6 +238,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'remove_order_item':
             removeOrderItem();
             break;
+
+        case 'add_order_item':
+            addOrderItem();
+            break;
             
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
@@ -119,6 +251,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 function getOrders() {
     global $conn;
+    if (!canViewOrders()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        return;
+    }
+    $isKitchenRole = isKitchenRoleSession();
     $dateFilter = isset($_POST['date']) ? $_POST['date'] : null;
     $paymentStatus = isset($_POST['payment_status']) ? $_POST['payment_status'] : null;
     $orderStatus = isset($_POST['order_status']) ? $_POST['order_status'] : null;
@@ -169,6 +306,11 @@ function getOrders() {
     
     $orders = [];
     while ($row = $result->fetch_assoc()) {
+        if ($isKitchenRole) {
+            $row['total_amount'] = null;
+            $row['subtotal'] = null;
+            $row['tax_amount'] = null;
+        }
         $orders[] = $row;
     }
     
@@ -229,6 +371,11 @@ function getOrderCounts() {
 
 function getOrderDetails() {
     global $conn;
+    if (!canViewOrders()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        return;
+    }
+    $isKitchenRole = isKitchenRoleSession();
     $orderId = $_POST['order_id'];
     
     // Get order details
@@ -257,9 +404,19 @@ function getOrderDetails() {
         
         $items = [];
         while ($row = $result->fetch_assoc()) {
+            if ($isKitchenRole) {
+                $row['price'] = null;
+            }
             $items[] = $row;
         }
-        
+        if ($isKitchenRole) {
+            $order['total_amount'] = null;
+            $order['subtotal'] = null;
+            $order['tax_amount'] = null;
+            $order['payment_type'] = null;
+            $order['payment_status'] = null;
+            $order['proof_of_payment'] = null;
+        }
         $order['items'] = $items;
         echo json_encode(['success' => true, 'order' => $order]);
     } else {
@@ -413,10 +570,21 @@ function cancelOrder() {
         return;
     }
     $orderId = (int) ($_POST['order_id'] ?? 0);
+    $adminPin = $_POST['admin_pin'] ?? '';
     if ($orderId <= 0) {
         echo json_encode(['success' => false, 'message' => 'Invalid order']);
         return;
     }
+    if (!hasConfiguredAdminOverridePin()) {
+        echo json_encode(['success' => false, 'message' => 'No admin override PIN is configured yet. Set it first in Admin > Users.']);
+        return;
+    }
+    $approvedBy = verifyAdminOverridePin($adminPin);
+    if ($approvedBy === null) {
+        echo json_encode(['success' => false, 'message' => 'Invalid admin PIN for order cancellation']);
+        return;
+    }
+    $requestedBy = currentActorId();
 
     $conn->begin_transaction();
 
@@ -465,6 +633,15 @@ function cancelOrder() {
         $upd->bind_param("si", $cancelled, $orderId);
         $upd->execute();
 
+        insertOrderChangeLog([
+            'order_id' => $orderId,
+            'change_type' => 'cancel_order',
+            'reason' => 'Cancelled from admin orders panel',
+            'requested_by' => $requestedBy,
+            'approved_by' => $approvedBy,
+            'pin_verified' => 1
+        ]);
+
         $conn->commit();
         echo json_encode(['success' => true, 'message' => 'Order cancelled']);
     } catch (Exception $e) {
@@ -481,16 +658,27 @@ function removeOrderItem() {
     }
     $orderId = (int) ($_POST['order_id'] ?? 0);
     $orderItemId = (int) ($_POST['order_item_id'] ?? 0);
+    $adminPin = $_POST['admin_pin'] ?? '';
     if ($orderId <= 0 || $orderItemId <= 0) {
         echo json_encode(['success' => false, 'message' => 'Invalid request']);
         return;
     }
+    if (!hasConfiguredAdminOverridePin()) {
+        echo json_encode(['success' => false, 'message' => 'No admin override PIN is configured yet. Set it first in Admin > Users.']);
+        return;
+    }
+    $approvedBy = verifyAdminOverridePin($adminPin);
+    if ($approvedBy === null) {
+        echo json_encode(['success' => false, 'message' => 'Invalid admin PIN for removing items']);
+        return;
+    }
+    $requestedBy = currentActorId();
 
     $conn->begin_transaction();
 
     try {
         $stmt = $conn->prepare("
-            SELECT o.order_id, o.order_status, oi.order_item_id, oi.product_id, oi.quantity
+            SELECT o.order_id, o.order_status, oi.order_item_id, oi.product_id, oi.quantity, oi.price
             FROM orders o
             JOIN order_items oi ON o.order_id = oi.order_id
             WHERE o.order_id = ? AND oi.order_item_id = ?
@@ -539,8 +727,106 @@ function removeOrderItem() {
             recalculateOrderTotals($conn, $orderId);
         }
 
+        insertOrderChangeLog([
+            'order_id' => $orderId,
+            'change_type' => 'remove_item',
+            'order_item_id' => $orderItemId,
+            'product_id' => (int) $row['product_id'],
+            'qty_before' => (int) $row['quantity'],
+            'qty_after' => 0,
+            'amount_before' => (float) $row['quantity'] * (float) $row['price'],
+            'amount_after' => 0.0,
+            'reason' => 'Item removed from admin orders panel',
+            'requested_by' => $requestedBy,
+            'approved_by' => $approvedBy,
+            'pin_verified' => 1
+        ]);
+
         $conn->commit();
         echo json_encode(['success' => true, 'message' => 'Item removed', 'order_empty' => $remaining === 0]);
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function addOrderItem() {
+    global $conn;
+    if (!assertCanManageOrders()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        return;
+    }
+
+    $orderId = (int) ($_POST['order_id'] ?? 0);
+    $productId = (int) ($_POST['product_id'] ?? 0);
+    $quantity = (int) ($_POST['quantity'] ?? 0);
+
+    if ($orderId <= 0 || $productId <= 0 || $quantity <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid request']);
+        return;
+    }
+
+    try {
+        $stmt = $conn->prepare("SELECT order_id, order_status FROM orders WHERE order_id = ?");
+        $stmt->bind_param("i", $orderId);
+        $stmt->execute();
+        $order = $stmt->get_result()->fetch_assoc();
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+        if (!in_array($order['order_status'], ['pending', 'preparing'], true)) {
+            echo json_encode(['success' => false, 'message' => 'Only pending/preparing orders can be updated']);
+            return;
+        }
+
+        $p = $conn->prepare("SELECT product_id, price, status FROM products WHERE product_id = ? LIMIT 1");
+        $p->bind_param("i", $productId);
+        $p->execute();
+        $product = $p->get_result()->fetch_assoc();
+        if (!$product || ($product['status'] ?? '') !== 'active') {
+            echo json_encode(['success' => false, 'message' => 'Selected product is unavailable']);
+            return;
+        }
+
+        // Best-effort stock validation for additional lines.
+        $inv = new InventoryUpdater($conn);
+        $stockCheck = $inv->checkStockForOrder([[
+            'product_id' => $productId,
+            'quantity' => $quantity
+        ]]);
+        if (!($stockCheck['success'] ?? false)) {
+            echo json_encode(['success' => false, 'message' => $stockCheck['message'] ?? 'Insufficient stock']);
+            return;
+        }
+
+        $conn->begin_transaction();
+
+        $ins = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
+        $price = (float) $product['price'];
+        $ins->bind_param("iiid", $orderId, $productId, $quantity, $price);
+        $ins->execute();
+        $newOrderItemId = (int) $conn->insert_id;
+
+        recalculateOrderTotals($conn, $orderId);
+
+        insertOrderChangeLog([
+            'order_id' => $orderId,
+            'change_type' => 'add_item',
+            'order_item_id' => $newOrderItemId,
+            'product_id' => $productId,
+            'qty_before' => 0,
+            'qty_after' => $quantity,
+            'amount_before' => 0.0,
+            'amount_after' => $price * $quantity,
+            'reason' => 'Additional item added from orders panel',
+            'requested_by' => currentActorId(),
+            'approved_by' => null,
+            'pin_verified' => 0
+        ]);
+
+        $conn->commit();
+        echo json_encode(['success' => true, 'message' => 'Additional item added']);
     } catch (Exception $e) {
         $conn->rollback();
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);

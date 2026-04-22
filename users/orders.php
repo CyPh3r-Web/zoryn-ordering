@@ -186,6 +186,18 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
             margin-top: 10px; font-family: 'Poppins', sans-serif; transition: all 0.2s;
         }
         .zoryn-orders-page .mark-paid-btn:hover { background: linear-gradient(135deg, #FFDF7D, #D3A533); transform: translateY(-1px); }
+        .zoryn-orders-page .payment-select {
+            width: 100%;
+            margin-top: 12px;
+            background: rgba(255,255,255,0.06);
+            color: #f1f1f1;
+            border: 1px solid rgba(212,175,55,0.28);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
 
         .zoryn-orders-page .verify-btn {
             margin-top: 15px; padding: 10px 20px;
@@ -322,6 +334,114 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
         .product-section-card .proof-image img { width: 100%; height: auto; display: block; }
 
         .view-empty-note { color: #9d9d9d; font-size: 13px; }
+        .add-order-picker {
+            max-height: 52vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .add-order-search {
+            width: 100%;
+            margin-bottom: 12px;
+            background: #141414;
+            border: 1px solid #2e2e2e;
+            border-radius: 10px;
+            color: #efefef;
+            padding: 10px 12px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
+        .add-order-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .add-order-card {
+            background: linear-gradient(165deg, #181818 0%, #101010 100%);
+            border: 1px solid #333;
+            border-radius: 14px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .add-order-card.active {
+            border-color: #d4af37;
+            box-shadow: 0 0 0 2px rgba(212,175,55,0.35), 0 10px 24px rgba(212,175,55,0.16);
+            transform: translateY(-2px);
+            background: linear-gradient(165deg, #211a09 0%, #151207 100%);
+        }
+        .add-order-card.active::after {
+            content: '\f00c';
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #f4d26b, #c99b2a);
+            color: #111;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            box-shadow: 0 6px 16px rgba(212,175,55,0.35);
+        }
+        .add-order-card img {
+            width: 100%;
+            height: 120px;
+            object-fit: contain;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.02);
+        }
+        .add-order-card .name {
+            color: #f6e2a2;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+            min-height: 34px;
+        }
+        .add-order-card .price {
+            color: #d4af37;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        .add-order-card .qty {
+            margin-top: 8px;
+            width: 72px;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            background: #0f0f0f;
+            color: #fff;
+            text-align: center;
+            padding: 6px;
+        }
+        .swal-blackgold-popup {
+            background:
+                radial-gradient(circle at top right, rgba(212,175,55,0.14), transparent 28%),
+                linear-gradient(180deg, #191919 0%, #111111 100%) !important;
+            border: 1px solid rgba(212,175,55,0.2) !important;
+            border-radius: 20px !important;
+            color: #f5f5f5 !important;
+        }
+        .swal-blackgold-title { color: #f8e7a4 !important; }
+        .swal-blackgold-html { color: #ddd !important; }
+        .swal-blackgold-confirm {
+            background: linear-gradient(135deg, #f4d26b, #c99b2a) !important;
+            color: #111 !important;
+            border-radius: 10px !important;
+            font-weight: 700 !important;
+        }
+        .swal-blackgold-cancel {
+            background: #2a2a2a !important;
+            color: #ddd !important;
+            border: 1px solid #3a3a3a !important;
+            border-radius: 10px !important;
+        }
 
         @media (max-width: 680px) {
             .product-modal-header    { flex-direction: column; }
@@ -373,7 +493,7 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                             <th>Date</th>
                             <th>Type</th>
                             <th>Total</th>
-                            <th>Payment Status</th>
+                            <th>Payment</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -467,18 +587,47 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
     window.removeOrderLine = function(orderId, orderItemId) {
         Swal.fire({
             title: 'Remove this item?',
-            text: 'It will be taken off the order and stock will be restored.',
+            html: `
+                <p style="margin-bottom:10px;">It will be taken off the order and stock will be restored.</p>
+                <input id="adminPinInput" type="password" class="swal2-input" inputmode="numeric" maxlength="8" placeholder="Enter admin PIN">
+            `,
             icon: 'warning',
             showCancelButton: true,
+            showDenyButton: true,
             confirmButtonColor: '#dc3545',
             cancelButtonColor: '#2E2E2E',
-            confirmButtonText: 'Yes, remove it'
+            denyButtonColor: '#2A2A2A',
+            confirmButtonText: 'Yes, remove it',
+            denyButtonText: 'No admin PIN set?',
+            preConfirm: () => {
+                const pin = (document.getElementById('adminPinInput')?.value || '').trim();
+                if (!/^\d{4,8}$/.test(pin)) {
+                    Swal.showValidationMessage('Admin PIN is required (4-8 digits).');
+                    return false;
+                }
+                return pin;
+            }
         }).then((result) => {
+            if (result.isDenied) {
+                Swal.fire({
+                    title: 'Setup Required',
+                    html: `
+                        <p style="margin-bottom:8px;">An admin must set an override PIN first.</p>
+                        <p style="font-size:13px; color:#b0b0b0; margin:0;">
+                            Go to <strong style="color:#D4AF37;">Admin &gt; Users</strong> and click the <strong style="color:#D4AF37;">key icon</strong> on an admin account to save a PIN.
+                        </p>
+                    `,
+                    icon: 'info',
+                    confirmButtonColor: '#D4AF37'
+                });
+                return;
+            }
             if (!result.isConfirmed) return;
+            const adminPin = result.value;
             fetch('../backend/order_functions.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=remove_order_item&order_id=${orderId}&order_item_id=${orderItemId}`
+                body: `action=remove_order_item&order_id=${orderId}&order_item_id=${orderItemId}&admin_pin=${encodeURIComponent(adminPin)}`
             })
             .then(response => response.json())
             .then(data => {
@@ -514,18 +663,47 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
     window.cancelWholeOrder = function(orderId) {
         Swal.fire({
             title: 'Cancel this order?',
-            text: 'The full order will be marked cancelled and ingredients will be restocked.',
+            html: `
+                <p style="margin-bottom:10px;">The full order will be marked cancelled and ingredients will be restocked.</p>
+                <input id="adminPinCancelInput" type="password" class="swal2-input" inputmode="numeric" maxlength="8" placeholder="Enter admin PIN">
+            `,
             icon: 'warning',
             showCancelButton: true,
+            showDenyButton: true,
             confirmButtonColor: '#dc3545',
             cancelButtonColor: '#2E2E2E',
-            confirmButtonText: 'Yes, cancel order'
+            denyButtonColor: '#2A2A2A',
+            confirmButtonText: 'Yes, cancel order',
+            denyButtonText: 'No admin PIN set?',
+            preConfirm: () => {
+                const pin = (document.getElementById('adminPinCancelInput')?.value || '').trim();
+                if (!/^\d{4,8}$/.test(pin)) {
+                    Swal.showValidationMessage('Admin PIN is required (4-8 digits).');
+                    return false;
+                }
+                return pin;
+            }
         }).then((result) => {
+            if (result.isDenied) {
+                Swal.fire({
+                    title: 'Setup Required',
+                    html: `
+                        <p style="margin-bottom:8px;">An admin must set an override PIN first.</p>
+                        <p style="font-size:13px; color:#b0b0b0; margin:0;">
+                            Go to <strong style="color:#D4AF37;">Admin &gt; Users</strong> and click the <strong style="color:#D4AF37;">key icon</strong> on an admin account to save a PIN.
+                        </p>
+                    `,
+                    icon: 'info',
+                    confirmButtonColor: '#D4AF37'
+                });
+                return;
+            }
             if (!result.isConfirmed) return;
+            const adminPin = result.value;
             fetch('../backend/order_functions.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=cancel_order&order_id=${orderId}`
+                body: `action=cancel_order&order_id=${orderId}&admin_pin=${encodeURIComponent(adminPin)}`
             })
             .then(response => response.json())
             .then(data => {
@@ -558,15 +736,15 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
         });
     };
 
-    window.markAsPaid = function(orderId, buttonElement) {
+    window.updatePaymentStatus = function(orderId, paymentStatus) {
         Swal.fire({
-            title: 'Mark as Paid',
-            text: 'Are you sure you want to mark this order as paid?',
+            title: 'Update payment status?',
+            text: `Set payment status to "${paymentStatus}"?`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#D4AF37',
             cancelButtonColor: '#2E2E2E',
-            confirmButtonText: 'Yes, mark as paid!'
+            confirmButtonText: 'Yes, update'
         }).then((result) => {
             if (result.isConfirmed) {
                 fetch('../backend/payment_functions.php', {
@@ -574,29 +752,14 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `action=mark_as_paid&order_id=${orderId}`
+                    body: `action=update_payment_status&order_id=${orderId}&payment_status=${encodeURIComponent(paymentStatus)}`
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Update the payment status in the UI
-                        const paymentInfo = buttonElement.closest('.payment-info');
-                        if (paymentInfo) {
-                            const statusElement = paymentInfo.querySelector('.info-value');
-                            if (statusElement) {
-                                statusElement.textContent = 'Paid';
-                                statusElement.className = 'info-value text-success';
-                            }
-                        }
-                        
-                        // Remove the mark as paid button
-                        if (buttonElement.parentNode) {
-                            buttonElement.parentNode.removeChild(buttonElement);
-                        }
-                        
                         Swal.fire({
                             title: 'Success!',
-                            text: 'Order has been marked as paid',
+                            text: 'Payment status updated',
                             icon: 'success',
                             confirmButtonColor: '#D4AF37'
                         }).then(() => {
@@ -605,7 +768,7 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                     } else {
                         Swal.fire({
                             title: 'Error',
-                            text: data.message || 'Failed to mark order as paid',
+                            text: data.message || 'Failed to update payment status',
                             icon: 'error',
                             confirmButtonColor: '#D4AF37'
                         });
@@ -615,7 +778,7 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                     console.error('Error:', error);
                     Swal.fire({
                         title: 'Error',
-                        text: 'An error occurred while marking the order as paid',
+                        text: 'An error occurred while updating payment status',
                         icon: 'error',
                         confirmButtonColor: '#D4AF37'
                     });
@@ -623,6 +786,159 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
             }
         });
     }
+
+    window.updatePaymentMethod = function(orderId, paymentType) {
+        fetch('../backend/payment_functions.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `action=update_payment_method&order_id=${orderId}&payment_type=${encodeURIComponent(paymentType)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                Swal.fire({
+                    title: 'Error',
+                    text: data.message || 'Failed to update payment method',
+                    icon: 'error',
+                    confirmButtonColor: '#D4AF37'
+                });
+                if (typeof window.loadOrders === 'function') window.loadOrders();
+            }
+        })
+        .catch(() => {
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to update payment method',
+                icon: 'error',
+                confirmButtonColor: '#D4AF37'
+            });
+            if (typeof window.loadOrders === 'function') window.loadOrders();
+        });
+    };
+
+    window.addAdditionalItem = function(orderId) {
+        fetch('../backend/order_manager.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=get_products'
+        })
+        .then(response => response.json())
+        .then(data => {
+            const products = data.products || [];
+            if (!products.length) {
+                Swal.fire({
+                    title: 'No products',
+                    text: 'No active products available to add.',
+                    icon: 'info',
+                    confirmButtonColor: '#D4AF37'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: 'Add Another Order Item',
+                width: 960,
+                html: `
+                    <div class="add-order-picker">
+                        <input id="addOrderSearchInput" class="add-order-search" placeholder="Search product name...">
+                        <div class="add-order-grid" id="addOrderGrid">
+                            ${products.map((p, idx) => `
+                                <div class="add-order-card ${idx === 0 ? 'active' : ''}" data-product-id="${p.product_id}" data-product-name="${String(p.product_name || '').toLowerCase()}">
+                                    <img src="${p.image_path || '../assets/zoryn/zoryn_logo.jpg'}" alt="${String(p.product_name || '').replace(/"/g, '&quot;')}" onerror="this.src='../assets/zoryn/zoryn_logo.jpg'">
+                                    <div class="name">${p.product_name}</div>
+                                    <div class="price">₱${parseFloat(p.price).toFixed(2)}</div>
+                                    <input class="qty" type="number" min="1" max="50" value="1">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Add to Order',
+                confirmButtonColor: '#D4AF37',
+                customClass: {
+                    popup: 'swal-blackgold-popup',
+                    title: 'swal-blackgold-title',
+                    htmlContainer: 'swal-blackgold-html',
+                    confirmButton: 'swal-blackgold-confirm',
+                    cancelButton: 'swal-blackgold-cancel'
+                },
+                didOpen: () => {
+                    const grid = document.getElementById('addOrderGrid');
+                    const searchInput = document.getElementById('addOrderSearchInput');
+                    const cards = Array.from(grid.querySelectorAll('.add-order-card'));
+
+                    cards.forEach(card => {
+                        card.addEventListener('click', (evt) => {
+                            if (evt.target.classList.contains('qty')) return;
+                            cards.forEach(c => c.classList.remove('active'));
+                            card.classList.add('active');
+                        });
+                    });
+
+                    searchInput.addEventListener('input', () => {
+                        const term = searchInput.value.trim().toLowerCase();
+                        cards.forEach(card => {
+                            const name = card.getAttribute('data-product-name') || '';
+                            card.style.display = term === '' || name.includes(term) ? '' : 'none';
+                        });
+                    });
+                },
+                preConfirm: () => {
+                    const activeCard = document.querySelector('#addOrderGrid .add-order-card.active');
+                    const productId = activeCard ? parseInt(activeCard.getAttribute('data-product-id'), 10) : 0;
+                    const quantity = activeCard ? parseInt(activeCard.querySelector('.qty').value, 10) : 0;
+                    if (!productId || !quantity || quantity < 1) {
+                        Swal.showValidationMessage('Select product and valid quantity.');
+                        return false;
+                    }
+                    return { productId, quantity };
+                }
+            }).then((result) => {
+                if (!result.isConfirmed || !result.value) return;
+                fetch('../backend/order_functions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=add_order_item&order_id=${orderId}&product_id=${result.value.productId}&quantity=${result.value.quantity}`
+                })
+                .then(response => response.json())
+                .then(res => {
+                    if (res.success) {
+                        Swal.close();
+                        if (typeof window.loadOrders === 'function') window.loadOrders();
+                        if (typeof window.viewOrderDetails === 'function') {
+                            window.viewOrderDetails(orderId);
+                        }
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: res.message || 'Failed to add item',
+                            icon: 'error',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    }
+                })
+                .catch(() => {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'Failed to add item',
+                        icon: 'error',
+                        confirmButtonColor: '#D4AF37'
+                    });
+                });
+            });
+        })
+        .catch(() => {
+            Swal.fire({
+                title: 'Error',
+                text: 'Could not load products',
+                icon: 'error',
+                confirmButtonColor: '#D4AF37'
+            });
+        });
+    };
 
     // Normalize order_type into label / icon / css class
     function orderTypeMeta(type) {
@@ -703,30 +1019,15 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                     tbody.innerHTML = '';
                     
                     data.orders.forEach(order => {
-                        // Determine payment status display
-                        let paymentStatusHtml = '';
-                        if (order.payment_status === 'verified') {
-                            paymentStatusHtml = `
-                                <span class="payment-status verified">
-                                    <i class="fas fa-check-circle"></i>
-                                    Paid
-                                </span>
-                            `;
-                        } else if (order.payment_status === 'pending') {
-                            paymentStatusHtml = `
-                                <span class="payment-status pending">
-                                    <i class="fas fa-clock"></i>
-                                    Pending
-                                </span>
-                            `;
-                        } else {
-                            paymentStatusHtml = `
-                                <span class="payment-status unpaid">
-                                    <i class="fas fa-times-circle"></i>
-                                    Unpaid
-                                </span>
-                            `;
-                        }
+                        const normalizedPaymentStatus = ((order.payment_status || '').toLowerCase() === 'verified' || (order.payment_status || '').toLowerCase() === 'paid')
+                            ? 'paid'
+                            : 'unpaid';
+                        const paymentStatusDropdown = `
+                            <select class="filter-select" onchange="updatePaymentStatus(${order.order_id}, this.value)">
+                                <option value="paid" ${normalizedPaymentStatus === 'paid' ? 'selected' : ''}>Paid</option>
+                                <option value="unpaid" ${normalizedPaymentStatus === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+                            </select>
+                        `;
 
                         const row = document.createElement('tr');
                         row.className = `order-row`;
@@ -736,7 +1037,7 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                             <td>${new Date(order.created_at).toLocaleString()}</td>
                             <td>${renderTypeBadge(order.order_type, order.table_number)}</td>
                             <td>₱${parseFloat(order.total_amount).toFixed(2)}</td>
-                            <td>${paymentStatusHtml}</td>
+                            <td>${paymentStatusDropdown}</td>
                             <td class="action-buttons">
                                 <button class="action-btn view" data-order-id="${order.order_id}" data-action="view" title="View Order Details">
                                     <i class="fas fa-eye"></i>
@@ -826,65 +1127,6 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                         `).join('')
                         : '<span class="view-empty-note">No order items found.</span>';
 
-                    // Payment section (always show; NULL/empty payment_type treated as cash at counter)
-                    const paymentTypeRaw = (order.payment_type || '').trim();
-                    const pt = paymentTypeRaw.toLowerCase() || 'cash';
-                    const displayTypeLabel = paymentTypeRaw
-                        ? paymentTypeRaw.charAt(0).toUpperCase() + paymentTypeRaw.slice(1)
-                        : 'Cash';
-                    const paymentStatusLabel = order.payment_status
-                        ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)
-                        : 'Pending';
-                    const statusCssExtra = order.payment_status === 'verified' ? 'text-success' : 'text-warning';
-                    const canMarkPayment = order.order_status !== 'cancelled' && order.payment_status !== 'verified';
-
-                    const cashAction = canMarkPayment && (pt === 'cash' || !paymentTypeRaw) ? `
-                            <div class="proof-of-payment">
-                                <button class="mark-paid-btn" onclick="markAsPaid(${order.order_id}, this)">
-                                    <i class="fas fa-money-bill-wave"></i> Mark as Paid
-                                </button>
-                            </div>` : '';
-
-                    const onlineProof = canMarkPayment && pt !== 'cash' && order.proof_of_payment ? `
-                            <div class="proof-of-payment">
-                                <h4>Proof of Payment</h4>
-                                <div class="proof-image">
-                                    <img src="../${order.proof_of_payment}" alt="Proof of Payment" onclick="showFullImage(this.src)">
-                                </div>
-                                <button class="verify-btn" onclick="verifyPayment(${order.order_id}, this)">
-                                    <i class="fas fa-check"></i> Verify Payment
-                                </button>
-                            </div>` : '';
-
-                    const onlinePendingNoProof = canMarkPayment && pt !== 'cash' && !order.proof_of_payment ? `
-                            <div class="proof-of-payment">
-                                <p class="view-empty-note">Awaiting payment proof upload from the customer.</p>
-                            </div>` : '';
-
-                    const paymentHtml = `
-                            <div class="product-section-card">
-                                <h3 class="product-section-title">Payment Details</h3>
-                                <div class="product-info-section">
-                                    <div class="product-info-card">
-                                        <div class="product-info-icon"><i class="fas fa-credit-card"></i></div>
-                                        <div class="product-info-content">
-                                            <div class="product-info-label">Payment Type</div>
-                                            <div class="product-info-value">${displayTypeLabel}</div>
-                                        </div>
-                                    </div>
-                                    <div class="product-info-card">
-                                        <div class="product-info-icon"><i class="fas fa-check-circle"></i></div>
-                                        <div class="product-info-content">
-                                            <div class="product-info-label">Payment Status</div>
-                                            <div class="product-info-value ${statusCssExtra}">${paymentStatusLabel}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                ${cashAction}
-                                ${onlineProof}
-                                ${onlinePendingNoProof}
-                            </div>`;
-
                     Swal.fire({
                         title: `<div class="product-modal-header">
                             <div class="product-modal-header-info">
@@ -933,13 +1175,17 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                                 <div class="product-section-card">
                                     <h3 class="product-section-title">Order Items</h3>
                                     <div class="order-items-list">${itemsHtml}</div>
+                                    ${canEditOrderLines(order.order_status) ? `
+                                    <div style="margin-top:12px;">
+                                        <button type="button" class="mark-paid-btn" onclick="addAdditionalItem(${order.order_id})">
+                                            <i class="fas fa-plus"></i> Add Item
+                                        </button>
+                                    </div>` : ''}
                                     <div class="order-total-bar">
                                         <div class="order-total-label">Total Amount</div>
                                         <div class="order-total-value">₱${parseFloat(order.total_amount).toFixed(2)}</div>
                                     </div>
                                 </div>
-
-                                ${paymentHtml}
                             </div>
                         `,
                         width: '900px',
@@ -975,6 +1221,7 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                 });
             });
         }
+        window.viewOrderDetails = viewOrderDetails;
         
         // Add event listeners for status buttons
         document.addEventListener('click', function(e) {

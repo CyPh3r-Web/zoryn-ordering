@@ -12,6 +12,7 @@ if (isset($_SESSION['user_id']) && empty($_SESSION['2fa_pending'])) {
 }
 
 require_once 'backend/dbconn.php';
+require_once 'backend/shift_access.php';
 
 $error        = '';
 $login_attempts = $_SESSION['login_attempts'] ?? 0;
@@ -106,17 +107,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_locked) {
                     $_SESSION['admin_name'] = $user['full_name'];
                     header("Location: admin/dashboard.php");
                 } else {
-                    $_SESSION['user_id']   = $user['user_id'];
-                    $_SESSION['username']  = $user['username'];
-                    $_SESSION['full_name'] = $user['full_name'];
-                    $_SESSION['role']      = $user['role'];
-
-                    if ($remember) {
-                        setcookie('remember_user', $user['user_id'], time() + (86400 * 30), "/");
+                    $shiftBlocked = false;
+                    if (strtolower((string) $user['role']) === 'cashier') {
+                        $shiftAccess = zoryn_get_cashier_shift_access($conn, (int) $user['user_id']);
+                        if (!$shiftAccess['is_within_shift'] && !$shiftAccess['is_grace_period']) {
+                            $error = $shiftAccess['message'];
+                            $_SESSION['login_attempts'] = 0;
+                            $_SESSION['last_attempt'] = 0;
+                            $is_locked = false;
+                            $seconds_left = 0;
+                            $shiftBlocked = true;
+                        }
                     }
-                    header("Location: users/home.php");
+                    if (!$shiftBlocked) {
+                        $_SESSION['user_id']   = $user['user_id'];
+                        $_SESSION['username']  = $user['username'];
+                        $_SESSION['full_name'] = $user['full_name'];
+                        $_SESSION['role']      = $user['role'];
+
+                        if ($remember) {
+                            setcookie('remember_user', $user['user_id'], time() + (86400 * 30), "/");
+                        }
+                        if (in_array(strtolower($user['role']), ['kitchen', 'crew'], true)) {
+                            header("Location: admin/orders.php");
+                        } else {
+                            header("Location: users/home.php");
+                        }
+                        exit();
+                    }
                 }
-                exit();
             }
         }
     }

@@ -1,5 +1,9 @@
 <?php
 session_start();
+if (isset($_SESSION['user_id']) && in_array(strtolower($_SESSION['role'] ?? ''), ['kitchen', 'crew'], true)) {
+    header('Location: ../admin/orders.php');
+    exit();
+}
 require_once '../navigation/navbar.php';
 ?>
 <!DOCTYPE html>

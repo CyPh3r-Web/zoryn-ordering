@@ -51,6 +51,7 @@
                         <option value="admin">Admins</option>
                         <option value="cashier">Cashiers</option>
                         <option value="waiter">Waiters</option>
+                        <option value="kitchen">Kitchen Crew</option>
                     </select>
                     <select id="statusFilter">
                         <option value="all">All Status</option>
@@ -109,6 +110,16 @@
                                 <td><?php echo date('M d, Y', strtotime($user['updated_at'])); ?></td>
                                 <td>
                                     <div class="action-buttons">
+                                        <?php if (in_array(strtolower($user['role']), ['cashier', 'admin'], true)): ?>
+                                        <button class="action-btn view set-pin" data-user-id="<?php echo $user['user_id']; ?>" data-user-role="<?php echo htmlspecialchars(strtolower($user['role'])); ?>" title="Set PIN">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+                                        <?php endif; ?>
+                                        <?php if (strtolower($user['role']) === 'cashier'): ?>
+                                        <button class="action-btn view set-shift" data-user-id="<?php echo $user['user_id']; ?>" data-full-name="<?php echo htmlspecialchars($user['full_name']); ?>" title="Assign Shift">
+                                            <i class="fas fa-clock"></i>
+                                        </button>
+                                        <?php endif; ?>
                                         <button class="action-btn view edit-user" data-user-id="<?php echo $user['user_id']; ?>">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -119,6 +130,32 @@
                                 </td>
                             </tr>
                         <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="users-table-container" style="margin-top:16px;">
+                <div class="users-table-header">
+                    <h2>Cashier Shift Monitoring</h2>
+                    <button id="refreshShiftList" class="action-btn view">
+                        <i class="fas fa-rotate"></i> Refresh
+                    </button>
+                </div>
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Cashier</th>
+                            <th>Shift Date</th>
+                            <th>Start</th>
+                            <th>End</th>
+                            <th>Status</th>
+                            <th>Cash Count</th>
+                            <th>Breakdown</th>
+                            <th>Recorded At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shiftListBody">
+                        <tr><td colspan="8" style="text-align:center;">Loading shifts...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -151,6 +188,7 @@
                         <select id="role" required>
                             <option value="waiter">Waiter</option>
                             <option value="cashier">Cashier</option>
+                            <option value="kitchen">Kitchen Crew</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
@@ -193,6 +231,7 @@
                         <select id="edit_role" required>
                             <option value="waiter">Waiter</option>
                             <option value="cashier">Cashier</option>
+                            <option value="kitchen">Kitchen Crew</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
@@ -252,6 +291,91 @@
 
     .toggle-email.active {
         color: var(--success-color);
+    }
+    .zoryn-swal-popup {
+        border: 1px solid rgba(212, 175, 55, 0.28) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35) !important;
+    }
+    .zoryn-swal-title {
+        color: #D4AF37 !important;
+        font-weight: 700 !important;
+    }
+    .zoryn-swal-html {
+        color: #E5E5E5 !important;
+    }
+    .zoryn-cash-breakdown {
+        text-align: left;
+        margin-top: 4px;
+        font-size: 14px;
+    }
+    .zoryn-cash-meta,
+    .zoryn-cash-row,
+    .zoryn-cash-total {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        border: 1px solid rgba(212, 175, 55, 0.18);
+        background: rgba(18, 18, 18, 0.65);
+    }
+    .zoryn-cash-meta span,
+    .zoryn-cash-row span,
+    .zoryn-cash-total span {
+        color: #B0B0B0;
+    }
+    .zoryn-cash-meta strong,
+    .zoryn-cash-row strong {
+        color: #F5D76E;
+        font-weight: 600;
+    }
+    .zoryn-cash-total {
+        margin-top: 10px;
+        border-color: rgba(212, 175, 55, 0.34);
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.22), rgba(184, 146, 30, 0.2));
+    }
+    .zoryn-cash-total strong {
+        color: #111;
+        font-size: 16px;
+        font-weight: 700;
+    }
+    .zoryn-shift-form {
+        text-align: left;
+        margin-top: 4px;
+    }
+    .zoryn-shift-field {
+        margin-bottom: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(212, 175, 55, 0.18);
+        background: rgba(18, 18, 18, 0.65);
+    }
+    .zoryn-shift-field label {
+        display: block;
+        margin-bottom: 6px;
+        color: #F5D76E;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+    .zoryn-shift-input {
+        width: 100%;
+        padding: 9px 10px;
+        border-radius: 8px;
+        border: 1px solid #2E2E2E;
+        background: #1F1F1F;
+        color: #E5E5E5;
+        font-size: 13px;
+        font-family: 'Poppins', sans-serif;
+        outline: none;
+        box-sizing: border-box;
+    }
+    .zoryn-shift-input:focus {
+        border-color: #D4AF37;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18);
     }
     </style>
 
@@ -325,6 +449,234 @@
                 deleteUserModal.style.display = 'flex';
             });
         });
+
+        document.querySelectorAll('.set-pin').forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                const userRole = this.getAttribute('data-user-role');
+                const pinLabel = userRole === 'admin' ? 'Admin Override PIN' : 'Cashier PIN';
+
+                Swal.fire({
+                    title: `Set ${pinLabel}`,
+                    html: `
+                        <input id="newPin" class="swal2-input" type="password" inputmode="numeric" placeholder="Enter 4-8 digits" maxlength="8">
+                        <input id="confirmPin" class="swal2-input" type="password" inputmode="numeric" placeholder="Confirm PIN" maxlength="8">
+                    `,
+                    focusConfirm: false,
+                    showCancelButton: true,
+                    confirmButtonText: 'Save PIN',
+                    confirmButtonColor: '#D4AF37',
+                    preConfirm: () => {
+                        const pin = document.getElementById('newPin').value.trim();
+                        const confirmPin = document.getElementById('confirmPin').value.trim();
+                        if (!/^\d{4,8}$/.test(pin)) {
+                            Swal.showValidationMessage('PIN must be 4 to 8 digits');
+                            return false;
+                        }
+                        if (pin !== confirmPin) {
+                            Swal.showValidationMessage('PIN does not match');
+                            return false;
+                        }
+                        return { pin };
+                    }
+                }).then((result) => {
+                    if (!result.isConfirmed || !result.value) return;
+                    fetch('../backend/set_user_pin.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            user_id: userId,
+                            pin: result.value.pin
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Swal.fire({
+                            icon: data.success ? 'success' : 'error',
+                            title: data.success ? 'Saved' : 'Error',
+                            text: data.message || (data.success ? 'PIN updated' : 'Failed to save PIN'),
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    })
+                    .catch(() => {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to save PIN',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                    });
+                });
+            });
+        });
+
+        function loadShiftList() {
+            fetch('../backend/shift_functions.php?action=get_admin_shift_list')
+                .then(response => response.json())
+                .then(data => {
+                    const body = document.getElementById('shiftListBody');
+                    if (!data.success) {
+                        body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#c0392b;">Failed to load shifts</td></tr>';
+                        return;
+                    }
+                    if (!data.shifts || !data.shifts.length) {
+                        body.innerHTML = '<tr><td colspan="8" style="text-align:center;">No shifts yet</td></tr>';
+                        return;
+                    }
+                    body.innerHTML = data.shifts.map(shift => {
+                        const hasCashCount = !!shift.cash_count_id;
+                        const cashText = hasCashCount ? `P ${Number(shift.total_cash || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not submitted';
+                        const breakdownBtn = hasCashCount
+                            ? `<button class="action-btn view view-cash-breakdown"
+                                 data-cashier="${(shift.cashier_name || '').replace(/"/g, '&quot;')}"
+                                 data-shift-date="${shift.shift_date || ''}"
+                                 data-1000="${Number(shift.count_1000 || 0)}"
+                                 data-500="${Number(shift.count_500 || 0)}"
+                                 data-100="${Number(shift.count_100 || 0)}"
+                                 data-50="${Number(shift.count_50 || 0)}"
+                                 data-20="${Number(shift.count_20 || 0)}"
+                                 data-total="${Number(shift.total_cash || 0)}">
+                                 <i class="fas fa-eye"></i> View
+                               </button>`
+                            : '<span style="color:#999;">-</span>';
+                        return `
+                            <tr>
+                                <td>${shift.cashier_name || '-'}</td>
+                                <td>${shift.shift_date || '-'}</td>
+                                <td>${shift.start_time || '-'}</td>
+                                <td>${shift.end_time || '-'}</td>
+                                <td>${shift.status || 'scheduled'}</td>
+                                <td>${cashText}</td>
+                                <td>${breakdownBtn}</td>
+                                <td>${shift.recorded_at || '-'}</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    body.querySelectorAll('.view-cash-breakdown').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const cashier = this.getAttribute('data-cashier') || 'Cashier';
+                            const shiftDate = this.getAttribute('data-shift-date') || '-';
+                            const c1000 = Number(this.getAttribute('data-1000') || 0);
+                            const c500 = Number(this.getAttribute('data-500') || 0);
+                            const c100 = Number(this.getAttribute('data-100') || 0);
+                            const c50 = Number(this.getAttribute('data-50') || 0);
+                            const c20 = Number(this.getAttribute('data-20') || 0);
+                            const total = Number(this.getAttribute('data-total') || 0);
+
+                            Swal.fire({
+                                title: 'Cash Count Breakdown',
+                                background: '#1F1F1F',
+                                color: '#E5E5E5',
+                                customClass: {
+                                    popup: 'zoryn-swal-popup',
+                                    title: 'zoryn-swal-title',
+                                    htmlContainer: 'zoryn-swal-html'
+                                },
+                                html: `
+                                    <div class="zoryn-cash-breakdown">
+                                        <div class="zoryn-cash-meta"><span>Cashier</span><strong>${cashier}</strong></div>
+                                        <div class="zoryn-cash-meta"><span>Shift Date</span><strong>${shiftDate}</strong></div>
+                                        <div class="zoryn-cash-row"><span>P 1000 bills</span><strong>${c1000}</strong></div>
+                                        <div class="zoryn-cash-row"><span>P 500 bills</span><strong>${c500}</strong></div>
+                                        <div class="zoryn-cash-row"><span>P 100 bills</span><strong>${c100}</strong></div>
+                                        <div class="zoryn-cash-row"><span>P 50 bills</span><strong>${c50}</strong></div>
+                                        <div class="zoryn-cash-row"><span>P 20 bills</span><strong>${c20}</strong></div>
+                                        <div class="zoryn-cash-total">
+                                            <span>Total Cash</span>
+                                            <strong>P ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                                        </div>
+                                    </div>
+                                `,
+                                confirmButtonColor: '#D4AF37'
+                            });
+                        });
+                    });
+                })
+                .catch(() => {
+                    document.getElementById('shiftListBody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#c0392b;">Failed to load shifts</td></tr>';
+                });
+        }
+
+        document.querySelectorAll('.set-shift').forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.getAttribute('data-user-id');
+                const fullName = this.getAttribute('data-full-name') || 'Cashier';
+                const today = new Date().toISOString().slice(0, 10);
+
+                Swal.fire({
+                    title: `Assign Shift: ${fullName}`,
+                    background: '#1F1F1F',
+                    color: '#E5E5E5',
+                    customClass: {
+                        popup: 'zoryn-swal-popup',
+                        title: 'zoryn-swal-title',
+                        htmlContainer: 'zoryn-swal-html'
+                    },
+                    html: `
+                        <div class="zoryn-shift-form">
+                            <div class="zoryn-shift-field">
+                                <label for="shiftDate">Shift Date</label>
+                                <input id="shiftDate" class="zoryn-shift-input" type="date" value="${today}">
+                            </div>
+                            <div class="zoryn-shift-field">
+                                <label for="shiftStart">Start Time</label>
+                                <input id="shiftStart" class="zoryn-shift-input" type="time" value="08:00">
+                            </div>
+                            <div class="zoryn-shift-field">
+                                <label for="shiftEnd">End Time</label>
+                                <input id="shiftEnd" class="zoryn-shift-input" type="time" value="17:00">
+                            </div>
+                            <div class="zoryn-shift-field">
+                                <label for="shiftNotes">Notes (Optional)</label>
+                                <input id="shiftNotes" class="zoryn-shift-input" type="text" placeholder="Add notes">
+                            </div>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Save Shift',
+                    confirmButtonColor: '#D4AF37',
+                    preConfirm: () => {
+                        const shift_date = document.getElementById('shiftDate').value;
+                        const start_time = document.getElementById('shiftStart').value;
+                        const end_time = document.getElementById('shiftEnd').value;
+                        const notes = document.getElementById('shiftNotes').value;
+                        if (!shift_date || !start_time || !end_time) {
+                            Swal.showValidationMessage('Date, start, and end time are required');
+                            return false;
+                        }
+                        if (start_time >= end_time) {
+                            Swal.showValidationMessage('End time must be later than start time');
+                            return false;
+                        }
+                        return { user_id: userId, shift_date, start_time, end_time, notes };
+                    }
+                }).then((result) => {
+                    if (!result.isConfirmed || !result.value) return;
+                    fetch('../backend/shift_functions.php?action=assign_shift', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(result.value)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        Swal.fire({
+                            icon: data.success ? 'success' : 'error',
+                            title: data.success ? 'Shift Saved' : 'Error',
+                            text: data.message || 'Failed to save shift',
+                            confirmButtonColor: '#D4AF37'
+                        });
+                        if (data.success) loadShiftList();
+                    })
+                    .catch(() => {
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to save shift', confirmButtonColor: '#D4AF37' });
+                    });
+                });
+            });
+        });
+
+        document.getElementById('refreshShiftList').addEventListener('click', loadShiftList);
+        loadShiftList();
 
         // Close Modals
         function closeAllModals() {

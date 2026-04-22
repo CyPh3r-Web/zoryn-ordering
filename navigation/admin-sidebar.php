@@ -53,6 +53,12 @@ function renderSidebarIcon($name) {
                     <span class="sidebar-text font-medium">Orders</span>
                 </a>
             </li>
+            <li class="sidebar-item <?= isActive('sales.php') ?>">
+                <a href="sales.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#B0B0B0] hover:text-[#F5D76E] hover:bg-[#D4AF37]/10 transition-all duration-200 group">
+                    <div class="sidebar-icon-wrap w-9 h-9 flex items-center justify-center rounded-xl bg-gradient-to-br from-[#D4AF37]/12 to-[#B8921E]/5 text-[#D4AF37]/75 ring-1 ring-[#D4AF37]/10 group-hover:from-[#D4AF37]/20 group-hover:to-[#F5D76E]/10 group-hover:text-[#F5D76E] group-hover:shadow-[0_0_18px_rgba(212,175,55,0.16)] transition-all duration-300"><?= renderSidebarIcon('reports') ?></div>
+                    <span class="sidebar-text font-medium">Sales Reading</span>
+                </a>
+            </li>
             <li class="sidebar-item <?= isActive('inventory.php') ?>">
                 <a href="inventory.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-[#B0B0B0] hover:text-[#F5D76E] hover:bg-[#D4AF37]/10 transition-all duration-200 group">
                     <div class="sidebar-icon-wrap w-9 h-9 flex items-center justify-center rounded-xl bg-gradient-to-br from-[#D4AF37]/12 to-[#B8921E]/5 text-[#D4AF37]/75 ring-1 ring-[#D4AF37]/10 group-hover:from-[#D4AF37]/20 group-hover:to-[#F5D76E]/10 group-hover:text-[#F5D76E] group-hover:shadow-[0_0_18px_rgba(212,175,55,0.16)] transition-all duration-300"><?= renderSidebarIcon('inventory') ?></div>
