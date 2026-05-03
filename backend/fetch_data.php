@@ -1,6 +1,7 @@
 <?php
 require_once 'dbconn.php';
 require_once 'recipe_cost_helper.php';
+require_once 'kitchen_stations_helper.php';
 
 // Function to fetch all ingredient categories
 function fetchIngredientCategories() {
@@ -52,8 +53,10 @@ function fetchIngredients() {
                     i.ingredient_name,
                     i.image_path,
                     i.category_id,
+                    i.fifo_group_key,
                     i.stock,
                     i.unit,
+                    COALESCE(i.moisture_type, 'dry') AS moisture_type,
                     i.default_unit_cost,
                     i.status,
                     i.created_at,
@@ -61,7 +64,7 @@ function fetchIngredients() {
                     c.category_name 
                 FROM ingredients i 
                 JOIN categories c ON i.category_id = c.category_id 
-                ORDER BY i.ingredient_name";
+                ORDER BY i.moisture_type ASC, i.ingredient_name ASC";
         $result = $conn->query($sql);
         
         $ingredients = [];
@@ -84,6 +87,7 @@ function fetchProducts() {
                     p.product_id,
                     p.product_name,
                     p.category_id,
+                    COALESCE(NULLIF(TRIM(p.kitchen_station), ''), 'fry') AS kitchen_station,
                     p.price,
                     p.tax_rate,
                     p.description,
@@ -107,6 +111,7 @@ function fetchProducts() {
                                     pi.quantity,
                                     pi.unit,
                                     i.unit AS stock_unit,
+                                    COALESCE(i.moisture_type, 'dry') AS moisture_type,
                                     i.default_unit_cost
                                 FROM product_ingredients pi
                                 JOIN ingredients i ON pi.ingredient_id = i.ingredient_id
@@ -126,6 +131,9 @@ function fetchProducts() {
                 $costBundle         = recipe_cost_enrich_lines($ingredients);
                 $row['ingredients'] = $costBundle['lines'];
                 $row['recipe_cost'] = $costBundle['recipe_cost'];
+                $ks = zoryn_normalize_kitchen_station($row['kitchen_station'] ?? 'fry');
+                $row['kitchen_station'] = $ks;
+                $row['kitchen_station_label'] = zoryn_kitchen_station_label($ks);
                 $products[] = $row;
             }
         }
@@ -157,8 +165,10 @@ function fetchIngredient($ingredientId) {
                     i.ingredient_name,
                     i.image_path,
                     i.category_id,
+                    i.fifo_group_key,
                     i.stock,
                     i.unit,
+                    COALESCE(i.moisture_type, 'dry') AS moisture_type,
                     i.default_unit_cost,
                     i.status,
                     i.created_at,

@@ -129,6 +129,90 @@ if (!isset($_SESSION['user_id'])) {
         .order-delete-btn { background: none; border: none; color: #666; cursor: pointer; font-size: 1rem; padding: 4px; transition: color 0.2s; }
         .order-delete-btn:hover { color: #FF6B6B; }
 
+        .order-discount-panel {
+            background: #121212;
+            border: 1px solid #2E2E2E;
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+        .order-discount-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .order-discount-label { color: #B0B0B0; font-size: 13px; font-weight: 600; letter-spacing: 0.03em; }
+        .discount-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .discount-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .discount-toggle-track {
+            width: 48px;
+            height: 26px;
+            border-radius: 999px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            position: relative;
+            transition: background 0.25s, border-color 0.25s;
+        }
+        .discount-toggle-thumb {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #888;
+            transition: transform 0.25s, background 0.25s;
+        }
+        .discount-toggle input:checked + .discount-toggle-track {
+            background: rgba(212,175,55,0.35);
+            border-color: rgba(212,175,55,0.55);
+        }
+        .discount-toggle input:checked + .discount-toggle-track .discount-toggle-thumb {
+            transform: translateX(22px);
+            background: #D4AF37;
+        }
+        .discount-state-text { font-size: 12px; color: #888; font-weight: 600; min-width: 28px; }
+        .discount-toggle input:checked ~ .discount-state-text { color: #D4AF37; }
+        .discount-percent-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid #2E2E2E;
+            transition: opacity 0.2s;
+        }
+        .discount-percent-wrap.discount-inactive { opacity: 0.45; pointer-events: none; }
+        .discount-percent-wrap label { color: #888; font-size: 12px; }
+        .discount-percent-input {
+            width: 100px;
+            text-align: center;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #2E2E2E;
+            background: #1F1F1F;
+            color: #D4AF37;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .discount-percent-input:focus {
+            outline: none;
+            border-color: rgba(212,175,55,0.6);
+            box-shadow: 0 0 0 2px rgba(212,175,55,0.12);
+        }
+        .discount-percent-suffix { color: #666; font-size: 13px; font-weight: 500; }
+        .order-item-row.order-discount-row .order-discount-val { color: #7bdc9a; font-weight: 600; }
+
         .order-payment-details {
             background: #121212;
             border: 1px solid #2E2E2E;
@@ -431,6 +515,24 @@ if (!isset($_SESSION['user_id'])) {
                 </div>
             </div>
 
+            <div class="order-discount-panel" id="order-discount-panel">
+                <div class="order-discount-head">
+                    <span class="order-discount-label">Discount</span>
+                    <label class="discount-toggle">
+                        <input type="checkbox" id="discount-enabled-toggle">
+                        <span class="discount-toggle-track"><span class="discount-toggle-thumb"></span></span>
+                        <span class="discount-state-text" id="discount-state-text">Off</span>
+                    </label>
+                </div>
+                <div class="discount-percent-wrap discount-inactive" id="discount-percent-wrap">
+                    <label for="discount-percent-input">Discount rate</label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <input type="number" class="discount-percent-input" id="discount-percent-input" min="0" max="100" step="0.01" placeholder="0" title="Percentage off the order total">
+                        <span class="discount-percent-suffix">%</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="order-payment-details">
                 <h3 class="order-payment-title">Order Summary</h3>
                 <p style="color:#888;text-align:center;padding:20px;">No items yet</p>
@@ -469,7 +571,54 @@ if (!isset($_SESSION['user_id'])) {
         let productSearchTerm = '';
         let categoriesData = [];
         let lastOrderData = null;
+        let discountEnabled = false;
+        let discountPercent = 0;
+        let discountPersistTimer = null;
         function money(n) { return parseFloat(n).toFixed(2); }
+
+        function computeDiscountSlice(gross, enabled, pctRaw) {
+            const pct = enabled ? Math.min(100, Math.max(0, parseFloat(pctRaw) || 0)) : 0;
+            let discAmt = 0;
+            if (pct > 0 && gross > 0) {
+                discAmt = Math.round(gross * (pct / 100) * 100) / 100;
+                if (discAmt > gross) discAmt = gross;
+            }
+            const total = Math.round((gross - discAmt) * 100) / 100;
+            return { pct, discAmt, total };
+        }
+
+        function syncDiscountControlsFromState() {
+            const toggle = document.getElementById('discount-enabled-toggle');
+            const wrap = document.getElementById('discount-percent-wrap');
+            const inp = document.getElementById('discount-percent-input');
+            const stateLbl = document.getElementById('discount-state-text');
+            if (toggle) toggle.checked = discountEnabled;
+            if (inp) inp.value = (discountPercent > 0 || discountEnabled) ? String(discountPercent) : '';
+            if (wrap) wrap.classList.toggle('discount-inactive', !discountEnabled);
+            if (stateLbl) stateLbl.textContent = discountEnabled ? 'On' : 'Off';
+        }
+
+        function persistDiscountToSession() {
+            clearTimeout(discountPersistTimer);
+            discountPersistTimer = setTimeout(() => {
+                const body = new URLSearchParams();
+                body.set('action', 'update_discount');
+                body.set('discount_enabled', discountEnabled ? '1' : '0');
+                body.set('discount_percent', String(discountPercent || 0));
+                fetch('../backend/order_manager.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                }).catch(() => {});
+            }, 200);
+        }
+
+        function resetDiscountSettings() {
+            discountEnabled = false;
+            discountPercent = 0;
+            syncDiscountControlsFromState();
+            persistDiscountToSession();
+        }
 
         function showProductsModal() {
             document.getElementById('productsModal').style.display = 'flex';
@@ -635,6 +784,8 @@ if (!isset($_SESSION['user_id'])) {
 
         function buildPaymentSummaryHtml(items) {
             const vat = computeVatBreakdown(items);
+            const gross = vat.total;
+            const disc = computeDiscountSlice(gross, discountEnabled, discountPercent);
             let html = '<h3 class="order-payment-title">Order Summary</h3>';
             items.forEach(i => {
                 const t = parseFloat(i.price) * i.quantity;
@@ -649,7 +800,10 @@ if (!isset($_SESSION['user_id'])) {
                 html += `<div class="order-item-row"><div style="color:#888;font-size:12px;">VAT-Exempt Sales</div><div style="color:#888;font-size:12px;">₱${money(vat.vatExemptSales)}</div></div>`;
             }
             html += `</div>`;
-            html += `<div class="order-total-row"><div>Total</div><div class="order-item-price">₱${money(vat.total)}</div></div>`;
+            if (disc.discAmt > 0) {
+                html += `<div class="order-item-row order-discount-row"><div>Discount (${money(disc.pct)}%)</div><div class="order-discount-val">−₱${money(disc.discAmt)}</div></div>`;
+            }
+            html += `<div class="order-total-row"><div>Total</div><div class="order-item-price">₱${money(disc.total)}</div></div>`;
             return html;
         }
 
@@ -659,7 +813,21 @@ if (!isset($_SESSION['user_id'])) {
                 const list = document.querySelector('.order-items-list');
                 const payment = document.querySelector('.order-payment-details');
                 const addBtn = `<div class="add-order-btn-container" onclick="showProductsModal()"><button class="add-order-btn"><i class="fas fa-plus"></i> Add Order</button></div>`;
-                if (data.error || !data.items || data.items.length === 0) { list.innerHTML = addBtn; payment.innerHTML = '<h3 class="order-payment-title">Order Summary</h3><p style="color:#888;text-align:center;padding:20px;">No items yet</p>'; lastOrderData = null; return; }
+                if (data.error || !data.items || data.items.length === 0) {
+                    list.innerHTML = addBtn;
+                    payment.innerHTML = '<h3 class="order-payment-title">Order Summary</h3><p style="color:#888;text-align:center;padding:20px;">No items yet</p>';
+                    lastOrderData = null;
+                    resetDiscountSettings();
+                    return;
+                }
+                if (typeof data.discount_enabled !== 'undefined') {
+                    discountEnabled = parseInt(data.discount_enabled, 10) === 1;
+                }
+                if (typeof data.discount_percent !== 'undefined') {
+                    discountPercent = parseFloat(data.discount_percent);
+                    if (Number.isNaN(discountPercent)) discountPercent = 0;
+                }
+                syncDiscountControlsFromState();
                 lastOrderData = data;
                 let html = '';
                 data.items.forEach(item => {
@@ -719,6 +887,8 @@ if (!isset($_SESSION['user_id'])) {
             fd.append('order_type', orderType);
             fd.append('user_id', USER_ID);
             fd.append('payment_type', paymentType);
+            fd.append('discount_enabled', discountEnabled ? '1' : '0');
+            fd.append('discount_percent', String(discountPercent || 0));
             if (tableNumber) fd.append('table_number', tableNumber);
             if (proofFile) fd.append('proof_of_payment', proofFile);
             return fetch('../backend/order_manager.php', { method: 'POST', body: fd }).then(r => r.json());
@@ -733,7 +903,7 @@ if (!isset($_SESSION['user_id'])) {
             return el ? el.value.trim() : '';
         }
 
-        function printReceipt(orderId, customerName, items, total, orderType, tableNumber) {
+        function printReceipt(orderId, customerName, items, discountedTotal, orderType, tableNumber, discSlice) {
             const now = new Date();
             const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
             const timeStr = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
@@ -745,6 +915,7 @@ if (!isset($_SESSION['user_id'])) {
             });
 
             const vat = computeVatBreakdown(items);
+            const disc = discSlice || computeDiscountSlice(vat.total, false, 0);
 
             let vatHtml = '';
             if (vat.vatableSales > 0) {
@@ -753,6 +924,10 @@ if (!isset($_SESSION['user_id'])) {
             }
             if (vat.vatExemptSales > 0) {
                 vatHtml += `<div class="receipt-vat-row"><span>VAT-Exempt Sales</span><span>₱${money(vat.vatExemptSales)}</span></div>`;
+            }
+            let discHtml = '';
+            if (disc.discAmt > 0) {
+                discHtml += `<div class="receipt-vat-row"><span>Discount (${money(disc.pct)}%)</span><span>−₱${money(disc.discAmt)}</span></div>`;
             }
 
             const logoUrl = new URL('../assets/zoryn/zoryn_logo.jpg', window.location.href).href;
@@ -802,7 +977,8 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
     </table>
     <hr class="receipt-divider">
     ${vatHtml}
-    <div class="receipt-total"><span>TOTAL</span><span>₱${money(vat.total)}</span></div>
+    ${discHtml}
+    <div class="receipt-total"><span>TOTAL</span><span>₱${money(discountedTotal)}</span></div>
     <hr class="receipt-divider">
     <div class="receipt-footer">
         <strong>Thank you for dining with us!</strong><br>
@@ -833,14 +1009,16 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
             }
 
             const items = lastOrderData.items;
-            let total = 0;
-            items.forEach(i => { total += parseFloat(i.price) * i.quantity; });
-            total = parseFloat(total.toFixed(2));
+            let gross = 0;
+            items.forEach(i => { gross += parseFloat(i.price) * i.quantity; });
+            gross = parseFloat(gross.toFixed(2));
+            const discConfirm = computeDiscountSlice(gross, discountEnabled, discountPercent);
+            const total = discConfirm.total;
 
             Swal.fire({
                 title: 'Confirm Order',
                 html: `<p style="color:#B0B0B0;font-size:14px;">Place order for <strong style="color:#D4AF37">${customerName}</strong>?</p>
-                       <p style="color:#F4D26B;font-size:1.2rem;font-weight:700;margin-top:8px;">Total: ₱${money(total)}</p>`,
+                       <p style="color:#F4D26B;font-size:1.2rem;font-weight:700;margin-top:8px;">Total: ₱${money(total)}</p>${discConfirm.discAmt > 0 ? `<p style="color:#7bdc9a;font-size:13px;margin-top:6px;">Including ${money(discConfirm.pct)}% discount (−₱${money(discConfirm.discAmt)})</p>` : ''}`,
                 showCancelButton: true,
                 confirmButtonText: '<i class="fas fa-check" style="margin-right:6px"></i>Place Order',
                 cancelButtonText: 'Cancel',
@@ -868,7 +1046,7 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
                         allowOutsideClick: false
                     }).then(choice => {
                         if (choice.isConfirmed) {
-                            printReceipt(orderId, customerName, items, total, orderType, tableNumber);
+                            printReceipt(orderId, customerName, items, total, orderType, tableNumber, discConfirm);
                         }
                         fetch('../backend/order_manager.php', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=clear_order' })
                         .then(() => {
@@ -933,6 +1111,29 @@ body { font-family:'Poppins',sans-serif; background:#fff; color:#1a1a1a; padding
                 searchInput.addEventListener('input', function() {
                     productSearchTerm = this.value || '';
                     filterProducts(currentCategory);
+                });
+            }
+
+            const discToggle = document.getElementById('discount-enabled-toggle');
+            const discInp = document.getElementById('discount-percent-input');
+            if (discToggle) {
+                discToggle.addEventListener('change', function() {
+                    discountEnabled = discToggle.checked;
+                    syncDiscountControlsFromState();
+                    if (lastOrderData && lastOrderData.items && lastOrderData.items.length) {
+                        updatePaymentDetails(lastOrderData);
+                    }
+                    persistDiscountToSession();
+                });
+            }
+            if (discInp) {
+                discInp.addEventListener('input', function() {
+                    const v = parseFloat(this.value);
+                    discountPercent = Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0;
+                    if (lastOrderData && lastOrderData.items && lastOrderData.items.length) {
+                        updatePaymentDetails(lastOrderData);
+                    }
+                    persistDiscountToSession();
                 });
             }
         });

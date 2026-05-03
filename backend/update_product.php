@@ -1,5 +1,6 @@
 <?php
 require_once 'dbconn.php';
+require_once 'kitchen_stations_helper.php';
 
 header('Content-Type: application/json');
 
@@ -33,6 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $description = $_POST['productDescription'];
         $status = $_POST['productStatus'];
+        $kitchenStationRaw = $_POST['productKitchenStation'] ?? '';
+        $kitchenStation = ($kitchenStationRaw !== '')
+            ? zoryn_normalize_kitchen_station($kitchenStationRaw)
+            : zoryn_default_kitchen_station_for_category((int) $categoryId);
         $ingredients = json_decode($_POST['ingredients'], true);
 
         // Start transaction
@@ -42,13 +47,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sql = "UPDATE products 
                 SET product_name = ?, 
                     category_id = ?, 
+                    kitchen_station = ?,
                     price = ?, 
                     tax_rate = ?,
                     description = ?, 
                     status = ? 
                 WHERE product_id = ?";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sisdssi", $productName, $categoryId, $price, $taxRate, $description, $status, $productId);
+        $stmt->bind_param("sissdssi", $productName, $categoryId, $kitchenStation, $price, $taxRate, $description, $status, $productId);
         $stmt->execute();
 
         // Handle image upload if provided

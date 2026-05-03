@@ -1,5 +1,6 @@
 <?php
 require_once 'dbconn.php';
+require_once 'kitchen_stations_helper.php';
 
 header('Content-Type: application/json');
 
@@ -32,6 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $description = $_POST['productDescription'];
         $status = $_POST['productStatus'];
+        $kitchenStationRaw = $_POST['productKitchenStation'] ?? '';
+        $kitchenStation = ($kitchenStationRaw !== '')
+            ? zoryn_normalize_kitchen_station($kitchenStationRaw)
+            : zoryn_default_kitchen_station_for_category((int) $categoryId);
         $ingredients = json_decode($_POST['ingredients'], true);
 
         // Handle image upload
@@ -65,10 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conn->begin_transaction();
 
         // Insert product
-        $sql = "INSERT INTO products (product_name, category_id, price, tax_rate, description, image_path, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO products (product_name, category_id, kitchen_station, price, tax_rate, description, image_path, status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sisdsss", $productName, $categoryId, $price, $taxRate, $description, $imagePath, $status);
+        $stmt->bind_param("sissdsss", $productName, $categoryId, $kitchenStation, $price, $taxRate, $description, $imagePath, $status);
         $stmt->execute();
         
         $productId = $conn->insert_id;

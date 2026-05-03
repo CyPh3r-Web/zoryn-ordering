@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Apr 18, 2026 at 01:24 PM
+-- Generation Time: Apr 22, 2026 at 03:26 PM
 -- Server version: 8.0.31
 -- PHP Version: 8.2.0
 
@@ -20,6 +20,70 @@ SET time_zone = "+00:00";
 --
 -- Database: `zoryn`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `cashier_shifts`
+--
+
+DROP TABLE IF EXISTS `cashier_shifts`;
+CREATE TABLE IF NOT EXISTS `cashier_shifts` (
+  `shift_id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `shift_date` date NOT NULL,
+  `start_time` time NOT NULL,
+  `end_time` time NOT NULL,
+  `status` enum('scheduled','closed') NOT NULL DEFAULT 'scheduled',
+  `notes` varchar(255) DEFAULT NULL,
+  `created_by` int DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`shift_id`),
+  UNIQUE KEY `uniq_cashier_shift` (`user_id`,`shift_date`),
+  KEY `idx_cashier_shifts_date` (`shift_date`)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `cashier_shifts`
+--
+
+INSERT INTO `cashier_shifts` (`shift_id`, `user_id`, `shift_date`, `start_time`, `end_time`, `status`, `notes`, `created_by`, `created_at`, `updated_at`) VALUES
+(1, 1, '2026-04-22', '08:00:00', '23:28:00', 'scheduled', '', 4, '2026-04-22 14:58:05', '2026-04-22 15:22:44');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `cashier_shift_cash_counts`
+--
+
+DROP TABLE IF EXISTS `cashier_shift_cash_counts`;
+CREATE TABLE IF NOT EXISTS `cashier_shift_cash_counts` (
+  `cash_count_id` int NOT NULL AUTO_INCREMENT,
+  `shift_id` int NOT NULL,
+  `count_1000` int NOT NULL DEFAULT '0',
+  `count_500` int NOT NULL DEFAULT '0',
+  `count_100` int NOT NULL DEFAULT '0',
+  `count_50` int NOT NULL DEFAULT '0',
+  `count_20` int NOT NULL DEFAULT '0',
+  `count_10` int NOT NULL DEFAULT '0',
+  `count_5` int NOT NULL DEFAULT '0',
+  `count_1` int NOT NULL DEFAULT '0',
+  `total_cash` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `expected_cash` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `cash_variance` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `recorded_by` int NOT NULL,
+  `recorded_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`cash_count_id`),
+  UNIQUE KEY `uniq_shift_cash_count` (`shift_id`)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `cashier_shift_cash_counts`
+--
+
+INSERT INTO `cashier_shift_cash_counts` (`cash_count_id`, `shift_id`, `count_1000`, `count_500`, `count_100`, `count_50`, `count_20`, `count_10`, `count_5`, `count_1`, `total_cash`, `expected_cash`, `cash_variance`, `recorded_by`, `recorded_at`) VALUES
+(1, 1, 9, 12, 7, 9, 10, 0, 0, 0, '16350.00', '0.00', '0.00', 1, '2026-04-22 15:09:00');
 
 -- --------------------------------------------------------
 
@@ -248,23 +312,48 @@ CREATE TABLE IF NOT EXISTS `ingredients` (
   `ingredient_name` varchar(100) NOT NULL,
   `image_path` varchar(255) DEFAULT NULL,
   `category_id` int DEFAULT NULL,
+  `fifo_group_key` varchar(64) DEFAULT NULL,
   `stock` decimal(10,2) NOT NULL,
   `reorder_level` decimal(10,2) NOT NULL DEFAULT '0.00',
   `default_unit_cost` decimal(10,2) NOT NULL DEFAULT '0.00',
   `unit` varchar(20) NOT NULL,
+  `moisture_type` enum('dry','wet') NOT NULL DEFAULT 'dry',
   `status` enum('active','inactive') DEFAULT 'active',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`ingredient_id`),
-  KEY `category_id` (`category_id`)
+  KEY `category_id` (`category_id`),
+  KEY `idx_ingredients_fifo_group` (`fifo_group_key`)
 ) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `ingredients`
 --
 
-INSERT INTO `ingredients` (`ingredient_id`, `ingredient_name`, `image_path`, `category_id`, `stock`, `reorder_level`, `default_unit_cost`, `unit`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'Cheese', 'assets/images/ingredients/69de6010a040a.jpg', 4, '29.36', '0.00', '200.00', 'kg', 'active', '2026-04-14 15:41:04', '2026-04-18 12:55:56');
+INSERT INTO `ingredients` (`ingredient_id`, `ingredient_name`, `image_path`, `category_id`, `fifo_group_key`, `stock`, `reorder_level`, `default_unit_cost`, `unit`, `moisture_type`, `status`, `created_at`, `updated_at`) VALUES
+(1, 'Cheese', 'assets/images/ingredients/69de6010a040a.jpg', 4, NULL, '29.33', '0.00', '200.00', 'kg', 'dry', 'active', '2026-04-14 15:41:04', '2026-04-22 14:22:07');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ingredient_lots`
+--
+
+DROP TABLE IF EXISTS `ingredient_lots`;
+CREATE TABLE IF NOT EXISTS `ingredient_lots` (
+  `lot_id` int NOT NULL AUTO_INCREMENT,
+  `ingredient_id` int NOT NULL,
+  `qty_remaining` decimal(10,2) NOT NULL,
+  `unit_cost` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `received_at` date NOT NULL,
+  `source_po_item_id` int DEFAULT NULL,
+  `source_label` varchar(50) DEFAULT 'purchase_order',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`lot_id`),
+  KEY `idx_ingredient_lots_ingredient` (`ingredient_id`),
+  KEY `idx_ingredient_lots_received` (`ingredient_id`,`received_at`),
+  KEY `idx_ingredient_lots_po_item` (`source_po_item_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -334,7 +423,7 @@ CREATE TABLE IF NOT EXISTS `inventory_movements` (
   PRIMARY KEY (`movement_id`),
   KEY `idx_inventory_movements_ingredient` (`ingredient_id`),
   KEY `idx_inventory_movements_date` (`movement_date`)
-) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `inventory_movements`
@@ -345,7 +434,15 @@ INSERT INTO `inventory_movements` (`movement_id`, `ingredient_id`, `movement_typ
 (2, 1, 'sale', '0.01', '0.00', 'order', 2, 'Sale deduction for order #2', '2026-04-18', NULL, '2026-04-18 12:25:10'),
 (3, 1, 'sale', '0.10', '0.00', 'order', 2, 'Sale deduction for order #2', '2026-04-18', NULL, '2026-04-18 12:25:10'),
 (4, 1, 'purchase', '10.00', '200.00', 'purchase_order', 1, 'Stock-in from PO-20260418-0001', '0000-00-00', 4, '2026-04-18 12:52:51'),
-(5, 1, 'purchase', '10.00', '200.00', 'purchase_order', 2, 'Stock-in from PO-20260418-0002', '0000-00-00', 4, '2026-04-18 12:55:56');
+(5, 1, 'purchase', '10.00', '200.00', 'purchase_order', 2, 'Stock-in from PO-20260418-0002', '0000-00-00', 4, '2026-04-18 12:55:56'),
+(6, 1, 'sale', '0.01', '0.00', 'order', 3, 'Sale deduction for order #3', '2026-04-19', NULL, '2026-04-19 07:11:03'),
+(7, 1, 'sale', '0.02', '0.00', 'order', 3, 'Sale deduction for order #3', '2026-04-19', NULL, '2026-04-19 07:11:03'),
+(8, 1, 'sale', '0.01', '0.00', 'order', 3, 'Sale deduction for order #3', '2026-04-19', NULL, '2026-04-19 07:11:03'),
+(9, 1, 'sale', '0.01', '0.00', 'order', 3, 'Sale deduction for order #3', '2026-04-19', NULL, '2026-04-19 07:11:03'),
+(10, 1, 'return_in', '0.01', '0.00', 'order', 3, 'Line item removed for order #3', '2026-04-19', NULL, '2026-04-19 10:43:17'),
+(11, 1, 'return_in', '0.01', '0.00', 'order', 3, 'Line item removed for order #3', '2026-04-19', NULL, '2026-04-19 10:43:27'),
+(12, 1, 'sale', '0.10', '0.00', 'order', 4, 'Sale deduction for order #4', '2026-04-21', NULL, '2026-04-21 10:29:53'),
+(13, 1, 'return_in', '0.10', '0.00', 'order', 4, 'Line item removed for order #4', '2026-04-22', NULL, '2026-04-22 14:22:07');
 
 -- --------------------------------------------------------
 
@@ -357,15 +454,19 @@ DROP TABLE IF EXISTS `notifications`;
 CREATE TABLE IF NOT EXISTS `notifications` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,
-  `order_id` int NOT NULL,
+  `order_id` int NOT NULL DEFAULT '0',
   `message` text NOT NULL,
   `is_completed` tinyint(1) DEFAULT '0',
   `is_read` tinyint(1) DEFAULT '0',
+  `notification_type` varchar(32) DEFAULT 'order',
+  `link_url` varchar(512) DEFAULT NULL,
+  `related_ingredient_id` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
-  KEY `order_id` (`order_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=130 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `order_id` (`order_id`),
+  KEY `idx_notifications_inventory` (`notification_type`,`related_ingredient_id`,`user_id`)
+) ENGINE=MyISAM AUTO_INCREMENT=134 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `notifications`
@@ -388,13 +489,17 @@ INSERT INTO `notifications` (`id`, `user_id`, `order_id`, `message`, `is_complet
 (97, 15, 12, 'Hi cashier anne, your Java Chip (₱49.00) has been completed. ', 0, 0, '2025-05-21 00:51:52'),
 (103, 12, 28, 'Hi cypher, your order of Matcha Milky (Total: ₱49.00) has been placed successfully. Please proceed to the counter for payment.', 0, 0, '2025-07-27 23:39:26'),
 (104, 12, 29, 'Hi cypher, your order of Ube Milky, Strawberry Milky, Matcha Milky, Iced Pure Black, Hot Black Gold Series (Total: ₱245.00) has been placed successfully. Please wait for payment verification.', 0, 0, '2025-07-28 01:03:57'),
+(132, 1, 4, 'Payment of ₱398.00 for your order has been received and verified.', 0, 0, '2026-04-22 14:25:15'),
 (108, 12, 29, 'Hi cypher, your Ube Milky, Strawberry Milky, Matcha Milky, Iced Pure Black and Hot Black Gold Series (₱245.00) is now being prepared. ', 0, 0, '2025-11-13 07:42:44'),
 (109, 12, 28, 'Hi cypher, your Matcha Milky (₱49.00) is now being prepared. ', 0, 0, '2025-11-13 07:42:47'),
 (110, 12, 29, 'Hi cypher, your Ube Milky, Strawberry Milky, Matcha Milky, Iced Pure Black and Hot Black Gold Series (₱245.00) has been completed. ', 0, 0, '2025-11-13 07:42:49'),
 (111, 12, 28, 'Hi cypher, your Matcha Milky (₱49.00) has been completed. ', 0, 0, '2025-11-13 07:42:53'),
+(133, 1, 4, 'Payment of ₱567.00 for your order has been received and verified.', 0, 0, '2026-04-22 14:27:52'),
 (123, 3, 2, 'Hi Guest, your order of Beef ala King, Baked Spaghetti (Total: ₱398.00) has been placed successfully. Please proceed to the counter for payment.', 0, 0, '2026-04-18 12:25:10'),
 (124, 3, 2, 'Hi Guest, your Beef ala King and Baked Spaghetti (₱398.00) is now being prepared. ', 0, 0, '2026-04-18 12:31:10'),
 (125, 3, 2, 'Cash payment of ₱398.00 for your order has been received and verified.', 0, 0, '2026-04-18 12:34:29'),
+(131, 1, 4, 'Hi Guest, your order of Baked Spaghetti (Total: ₱199.00) has been placed successfully. Please proceed to the counter for payment.', 0, 0, '2026-04-21 10:29:53'),
+(130, 1, 3, 'Hi Guest, your order of Chicken Casserole, Onion Rings Tower, Fries Bucket, House Lemonade (Total: ₱805.00) has been placed successfully. Please proceed to the counter for payment.', 0, 0, '2026-04-19 07:11:03'),
 (129, 3, 2, 'Hi Guest, your Beef ala King and Baked Spaghetti (₱398.00) has been completed. ', 0, 0, '2026-04-18 12:34:51');
 
 -- --------------------------------------------------------
@@ -419,20 +524,69 @@ CREATE TABLE IF NOT EXISTS `orders` (
   `feedback_ratings` json DEFAULT NULL,
   `feedback_date` datetime DEFAULT NULL,
   `user_id` int DEFAULT NULL,
+  `waiter_id` int DEFAULT NULL,
+  `cashier_id` int DEFAULT NULL,
   `table_number` varchar(20) DEFAULT NULL,
   `subtotal` decimal(10,2) NOT NULL DEFAULT '0.00',
   `tax_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `discount_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `discount_percent` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `discount_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`order_id`),
-  KEY `user_id` (`user_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `user_id` (`user_id`),
+  KEY `idx_orders_waiter_id` (`waiter_id`),
+  KEY `idx_orders_cashier_id` (`cashier_id`)
+) ENGINE=MyISAM AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `orders`
 --
 
-INSERT INTO `orders` (`order_id`, `customer_name`, `order_type`, `order_status`, `total_amount`, `payment_type`, `proof_of_payment`, `payment_status`, `created_at`, `updated_at`, `feedback_comment`, `feedback_ratings`, `feedback_date`, `user_id`, `table_number`, `subtotal`, `tax_amount`) VALUES
-(1, 'Jav', 'dine-in', 'completed', '199.00', 'cash', NULL, 'verified', '2026-04-18 12:10:37', '2026-04-18 12:34:49', NULL, NULL, NULL, 1, 'T-16', '177.68', '21.32'),
-(2, 'Guest', 'dine-in', 'completed', '398.00', 'cash', NULL, 'verified', '2026-04-18 12:25:09', '2026-04-18 12:34:51', NULL, NULL, NULL, 3, 'T-17', '355.36', '42.64');
+INSERT INTO `orders` (`order_id`, `customer_name`, `order_type`, `order_status`, `total_amount`, `payment_type`, `proof_of_payment`, `payment_status`, `created_at`, `updated_at`, `feedback_comment`, `feedback_ratings`, `feedback_date`, `user_id`, `waiter_id`, `cashier_id`, `table_number`, `subtotal`, `tax_amount`, `discount_enabled`, `discount_percent`, `discount_amount`) VALUES
+(1, 'Jav', 'dine-in', 'completed', '199.00', 'cash', NULL, 'paid', '2026-04-18 12:10:37', '2026-04-22 13:59:16', NULL, NULL, NULL, 1, NULL, 1, 'T-16', '177.68', '21.32', 0, '0.00', '0.00'),
+(2, 'Guest', 'dine-in', 'completed', '398.00', 'cash', NULL, 'paid', '2026-04-18 12:25:09', '2026-04-22 13:59:16', NULL, NULL, NULL, 3, 3, NULL, 'T-17', '355.36', '42.64', 0, '0.00', '0.00'),
+(3, 'Guest', 'take-out', 'pending', '487.00', 'cash', NULL, 'unpaid', '2026-04-19 07:11:03', '2026-04-19 10:43:27', NULL, NULL, NULL, 1, NULL, 1, NULL, '434.82', '52.18', 0, '0.00', '0.00'),
+(4, 'Guest', 'take-out', 'pending', '567.00', 'cash', NULL, 'verified', '2026-04-21 10:29:53', '2026-04-22 14:27:52', NULL, NULL, NULL, 1, NULL, 1, NULL, '506.25', '60.75', 0, '0.00', '0.00');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `order_change_logs`
+--
+
+DROP TABLE IF EXISTS `order_change_logs`;
+CREATE TABLE IF NOT EXISTS `order_change_logs` (
+  `change_log_id` int NOT NULL AUTO_INCREMENT,
+  `order_id` int NOT NULL,
+  `change_type` enum('add_item','remove_item','cancel_order','reopen_order','qty_update','payment_update') NOT NULL,
+  `order_item_id` int DEFAULT NULL,
+  `product_id` int DEFAULT NULL,
+  `qty_before` int DEFAULT NULL,
+  `qty_after` int DEFAULT NULL,
+  `amount_before` decimal(10,2) DEFAULT NULL,
+  `amount_after` decimal(10,2) DEFAULT NULL,
+  `reason` varchar(255) DEFAULT NULL,
+  `requested_by` int DEFAULT NULL,
+  `approved_by` int DEFAULT NULL,
+  `pin_verified` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`change_log_id`),
+  KEY `idx_ocl_order` (`order_id`),
+  KEY `idx_ocl_type` (`change_type`),
+  KEY `idx_ocl_requested_by` (`requested_by`),
+  KEY `idx_ocl_approved_by` (`approved_by`),
+  KEY `idx_ocl_created_at` (`created_at`)
+) ENGINE=MyISAM AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `order_change_logs`
+--
+
+INSERT INTO `order_change_logs` (`change_log_id`, `order_id`, `change_type`, `order_item_id`, `product_id`, `qty_before`, `qty_after`, `amount_before`, `amount_after`, `reason`, `requested_by`, `approved_by`, `pin_verified`, `created_at`) VALUES
+(1, 4, 'add_item', 9, 1, 0, 1, '0.00', '199.00', 'Additional item added from orders panel', 1, NULL, 0, '2026-04-22 14:18:15'),
+(2, 4, 'remove_item', 8, 1, 1, 0, '199.00', '0.00', 'Item removed from admin orders panel', 1, 4, 1, '2026-04-22 14:22:07'),
+(3, 4, 'add_item', 10, 2, 0, 1, '0.00', '199.00', 'Additional item added from orders panel', 1, NULL, 0, '2026-04-22 14:24:17'),
+(4, 4, 'add_item', 11, 10, 0, 1, '0.00', '169.00', 'Additional item added from orders panel', 1, NULL, 0, '2026-04-22 14:25:37');
 
 -- --------------------------------------------------------
 
@@ -450,7 +604,7 @@ CREATE TABLE IF NOT EXISTS `order_items` (
   PRIMARY KEY (`order_item_id`),
   KEY `order_id` (`order_id`),
   KEY `product_id` (`product_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `order_items`
@@ -459,7 +613,65 @@ CREATE TABLE IF NOT EXISTS `order_items` (
 INSERT INTO `order_items` (`order_item_id`, `order_id`, `product_id`, `quantity`, `price`) VALUES
 (1, 1, 1, 1, '199.00'),
 (2, 2, 3, 1, '199.00'),
-(3, 2, 1, 1, '199.00');
+(3, 2, 1, 1, '199.00'),
+(10, 4, 2, 1, '199.00'),
+(5, 3, 10, 2, '169.00'),
+(6, 3, 8, 1, '149.00'),
+(9, 4, 1, 1, '199.00'),
+(11, 4, 10, 1, '169.00');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `order_payment_history`
+--
+
+DROP TABLE IF EXISTS `order_payment_history`;
+CREATE TABLE IF NOT EXISTS `order_payment_history` (
+  `payment_history_id` int NOT NULL AUTO_INCREMENT,
+  `order_id` int NOT NULL,
+  `old_payment_method_id` int DEFAULT NULL,
+  `new_payment_method_id` int DEFAULT NULL,
+  `old_payment_status` varchar(40) DEFAULT NULL,
+  `new_payment_status` varchar(40) DEFAULT NULL,
+  `changed_by` int DEFAULT NULL,
+  `change_note` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`payment_history_id`),
+  KEY `idx_oph_order` (`order_id`),
+  KEY `idx_oph_changed_by` (`changed_by`),
+  KEY `idx_oph_created_at` (`created_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `payment_methods`
+--
+
+DROP TABLE IF EXISTS `payment_methods`;
+CREATE TABLE IF NOT EXISTS `payment_methods` (
+  `payment_method_id` int NOT NULL AUTO_INCREMENT,
+  `method_code` varchar(30) NOT NULL,
+  `method_name` varchar(60) NOT NULL,
+  `requires_proof` tinyint(1) NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`payment_method_id`),
+  UNIQUE KEY `uniq_payment_methods_code` (`method_code`)
+) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `payment_methods`
+--
+
+INSERT INTO `payment_methods` (`payment_method_id`, `method_code`, `method_name`, `requires_proof`, `is_active`, `created_at`, `updated_at`) VALUES
+(1, 'cash', 'Cash', 0, 1, '2026-04-22 13:57:35', '2026-04-22 13:57:35'),
+(2, 'gcash', 'GCash', 1, 1, '2026-04-22 13:57:35', '2026-04-22 13:57:35'),
+(3, 'maya', 'Maya', 1, 1, '2026-04-22 13:57:35', '2026-04-22 13:57:35'),
+(4, 'card', 'Card', 0, 1, '2026-04-22 13:57:35', '2026-04-22 13:57:35'),
+(5, 'bank_transfer', 'Bank Transfer', 1, 1, '2026-04-22 13:57:35', '2026-04-22 13:57:35');
 
 -- --------------------------------------------------------
 
@@ -472,6 +684,7 @@ CREATE TABLE IF NOT EXISTS `products` (
   `product_id` int NOT NULL AUTO_INCREMENT,
   `product_name` varchar(100) NOT NULL,
   `category_id` int DEFAULT NULL,
+  `kitchen_station` enum('soup','noodles','pasta','fry','salad','soda_wares') NOT NULL DEFAULT 'fry',
   `price` decimal(10,2) NOT NULL,
   `tax_rate` decimal(5,2) NOT NULL DEFAULT '12.00',
   `description` text,
@@ -563,6 +776,24 @@ INSERT INTO `products` (`product_id`, `product_name`, `category_id`, `price`, `t
 (73, 'Molo Soup', 15, '169.00', '12.00', 'Demo: dumpling soup', 'assets/zoryn/products/soup.jpg', 'active', '2026-04-18 13:06:48', '2026-04-18 13:13:11'),
 (74, 'Tinola', 15, '189.00', '12.00', 'Demo: ginger chicken soup', 'assets/zoryn/products/soup.jpg', 'active', '2026-04-18 13:06:48', '2026-04-18 13:13:11'),
 (75, 'Cream of Mushroom', 15, '149.00', '12.00', 'Demo: creamy soup', 'assets/zoryn/products/soup.jpg', 'active', '2026-04-18 13:06:48', '2026-04-18 13:13:11');
+
+--
+-- Seed kitchen_station (six lanes). Tune per SKU in Admin → Products.
+--
+UPDATE `products` SET `kitchen_station` = 'soup' WHERE `category_id` = 15;
+UPDATE `products` SET `kitchen_station` = 'salad' WHERE `category_id` = 12;
+UPDATE `products` SET `kitchen_station` = 'pasta' WHERE `category_id` = 1;
+UPDATE `products` SET `kitchen_station` = 'noodles' WHERE `category_id` = 11;
+UPDATE `products` SET `kitchen_station` = 'fry' WHERE `category_id` IN (2,3,4,7,10,13);
+UPDATE `products` SET `kitchen_station` = 'soda_wares' WHERE `category_id` IN (5,6,8,9);
+UPDATE `products` SET `kitchen_station` = 'soup' WHERE `product_id` = 65;
+UPDATE `products` SET `kitchen_station` = 'pasta' WHERE `product_id` = 70;
+UPDATE `products` SET `kitchen_station` = 'noodles' WHERE `product_id` IN (67,68);
+UPDATE `products` SET `kitchen_station` = 'fry' WHERE `product_id` IN (66,69);
+
+--
+-- Older DB missing column: ALTER TABLE `products` ADD COLUMN `kitchen_station` enum('soup','noodles','pasta','fry','salad','soda_wares') NOT NULL DEFAULT 'fry' AFTER `category_id`;
+--
 
 -- --------------------------------------------------------
 
@@ -839,6 +1070,12 @@ CREATE TABLE IF NOT EXISTS `users` (
   `user_id` int NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
+  `cashier_pin_hash` varchar(255) DEFAULT NULL,
+  `cashier_pin_set_by` int DEFAULT NULL,
+  `cashier_pin_set_at` datetime DEFAULT NULL,
+  `cashier_pin_updated_at` datetime DEFAULT NULL,
+  `admin_override_pin_hash` varchar(255) DEFAULT NULL,
+  `admin_pin_updated_at` datetime DEFAULT NULL,
   `full_name` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
   `role` varchar(255) NOT NULL,
@@ -857,18 +1094,19 @@ CREATE TABLE IF NOT EXISTS `users` (
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=MyISAM AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `username`, `password`, `full_name`, `email`, `role`, `created_at`, `updated_at`, `profile_picture`, `verification_code`, `verification_expires`, `account_status`, `two_factor_enabled`, `two_factor_secret`, `two_factor_attempts`, `last_2fa_sent`, `twofa_code`, `twofa_expires`) VALUES
-(1, 'zoryn', '$2y$10$xqoQQ.PpYwIMYUKl/sXQLuCF/ZLuYI2nUeTWrGgxRBHn3y8p3xVwy', 'zoryn cashier', 'zoryn-cashier@gmail.com', 'cashier', '2025-04-19 13:37:09', '2026-04-18 12:44:15', '69de4d7c3e4ef_zoryn_logo.jpg', NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL),
-(12, 'cypher', '$2y$10$TienqtFHWNeLuhOCVYH66OCN6LlhYhro2IxkdfKvjNMViTz0xpp9q', 'cypher web', 'cyph3rcoding@gmail.com', 'admin', '2025-04-30 07:24:04', '2025-07-28 01:02:57', '68175fb68d8f6_Itachi uchiha anime icon !.jpg', '6186', '2025-04-30 15:54:04', 'active', 1, NULL, 0, '2025-07-28 09:02:38', NULL, NULL),
-(3, 'Waiter', '$2y$10$TienqtFHWNeLuhOCVYH66OCN6LlhYhro2IxkdfKvjNMViTz0xpp9q', 'zoryn waiter', 'zoryn-waiter@gmail.com', 'waiter', '2025-04-24 20:03:20', '2026-04-18 12:24:43', NULL, NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL),
-(4, 'admin', '$2y$10$9lJqX5R/J0WayGSvSMHIaOeJ2x/s.EndlXq2e99Wq4ywDAEBOH32a', 'admin', 'admin@gmail.com', 'admin', '2025-04-24 20:05:26', '2025-04-30 13:48:49', NULL, NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL),
-(15, 'cashier anne', '$2y$10$p/UIQMOMPuat.BUcKAF4ae5oXVUlHsBQ88Dc2W4YHvq0sWj8QIzRq', 'anne hathaway', 'anne@gmail.com', 'cashier', '2025-05-01 03:39:34', '2025-05-13 13:49:02', '6812ed477abf9_312063087_644479490382883_5575475379441192405_n.jpg', NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL);
+INSERT INTO `users` (`user_id`, `username`, `password`, `cashier_pin_hash`, `cashier_pin_set_by`, `cashier_pin_set_at`, `cashier_pin_updated_at`, `admin_override_pin_hash`, `admin_pin_updated_at`, `full_name`, `email`, `role`, `created_at`, `updated_at`, `profile_picture`, `verification_code`, `verification_expires`, `account_status`, `two_factor_enabled`, `two_factor_secret`, `two_factor_attempts`, `last_2fa_sent`, `twofa_code`, `twofa_expires`) VALUES
+(1, 'zoryn', '$2y$10$xqoQQ.PpYwIMYUKl/sXQLuCF/ZLuYI2nUeTWrGgxRBHn3y8p3xVwy', '$2y$10$4LNtdrN/a4PrOX89qesJ3udS66ypdM.Y4UZug5HWM7a8YDTtb6kpy', 4, '2026-04-22 22:18:51', '2026-04-22 22:18:51', NULL, NULL, 'zoryn cashier', 'zoryn-cashier@gmail.com', 'cashier', '2025-04-19 13:37:09', '2026-04-22 14:18:51', '69de4d7c3e4ef_zoryn_logo.jpg', NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL),
+(12, 'cypher', '$2y$10$TienqtFHWNeLuhOCVYH66OCN6LlhYhro2IxkdfKvjNMViTz0xpp9q', NULL, NULL, NULL, NULL, NULL, NULL, 'cypher web', 'cyph3rcoding@gmail.com', 'admin', '2025-04-30 07:24:04', '2025-07-28 01:02:57', '68175fb68d8f6_Itachi uchiha anime icon !.jpg', '6186', '2025-04-30 15:54:04', 'active', 1, NULL, 0, '2025-07-28 09:02:38', NULL, NULL),
+(3, 'Waiter', '$2y$10$TienqtFHWNeLuhOCVYH66OCN6LlhYhro2IxkdfKvjNMViTz0xpp9q', NULL, NULL, NULL, NULL, NULL, NULL, 'zoryn waiter', 'zoryn-waiter@gmail.com', 'waiter', '2025-04-24 20:03:20', '2026-04-18 12:24:43', NULL, NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL),
+(4, 'admin', '$2y$10$9lJqX5R/J0WayGSvSMHIaOeJ2x/s.EndlXq2e99Wq4ywDAEBOH32a', NULL, NULL, NULL, NULL, '$2y$10$ymdmu6Lhk6h0Ab9xKWqQDe.x4bd40UHNl2n4vmHOUJoVLObIaKoqa', '2026-04-22 22:21:39', 'admin', 'admin@gmail.com', 'admin', '2025-04-24 20:05:26', '2026-04-22 14:21:39', NULL, NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL),
+(15, 'cashier anne', '$2y$10$p/UIQMOMPuat.BUcKAF4ae5oXVUlHsBQ88Dc2W4YHvq0sWj8QIzRq', NULL, NULL, NULL, NULL, NULL, NULL, 'anne hathaway', 'anne@gmail.com', 'cashier', '2025-05-01 03:39:34', '2025-05-13 13:49:02', '6812ed477abf9_312063087_644479490382883_5575475379441192405_n.jpg', NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL),
+(18, 'zoryn-kitchen@gmail.com', '$2y$10$c/mBkAdrX4hhOJBPMLofA./sL8.VRQK8oMARL01.pv3q/OQtr73sy', NULL, NULL, NULL, NULL, NULL, NULL, 'Zoryn Kitchen', 'zoryn-kitchen@gmail.com', 'kitchen', '2026-04-22 13:36:33', '2026-04-22 13:36:33', NULL, NULL, NULL, 'active', 0, NULL, 0, NULL, NULL, NULL);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

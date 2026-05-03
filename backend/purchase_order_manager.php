@@ -18,6 +18,7 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
 require_once 'dbconn.php';
+require_once 'fifo_stock_helper.php';
 
 function po_respond($payload) {
     echo json_encode($payload);
@@ -114,6 +115,9 @@ function po_create(mysqli $conn, array $input): array {
         $updateStock = $conn->prepare("UPDATE ingredients
             SET stock = stock + ?, default_unit_cost = ?, updated_at = NOW()
             WHERE ingredient_id = ?");
+        $updateCostOnly = $conn->prepare(
+            "UPDATE ingredients SET default_unit_cost = ?, updated_at = NOW() WHERE ingredient_id = ?"
+        );
 
         $costHistory = $conn->prepare("INSERT INTO ingredient_cost_history
             (ingredient_id, unit_cost, effective_date, source_type, source_id)
@@ -133,13 +137,20 @@ function po_create(mysqli $conn, array $input): array {
 
             $insertItem->bind_param('iidsdd', $poId, $ingredientId, $qty, $unit, $cost, $subtotal);
             $insertItem->execute();
+            $poItemId = (int) $conn->insert_id;
 
             $noteTxt = "Stock-in from {$poNumber}";
-            $logMovement->bind_param('iddisis', $ingredientId, $qty, $cost, $poId, $noteTxt, $poDate, $createdBy);
+            $logMovement->bind_param('iddissi', $ingredientId, $qty, $cost, $poId, $noteTxt, $poDate, $createdBy);
             $logMovement->execute();
 
-            $updateStock->bind_param('ddi', $qty, $cost, $ingredientId);
-            $updateStock->execute();
+            if (fifo_lots_table_exists($conn)) {
+                fifo_add_lot_from_purchase($conn, $ingredientId, $qty, $cost, $poDate, $poItemId > 0 ? $poItemId : null);
+                $updateCostOnly->bind_param('di', $cost, $ingredientId);
+                $updateCostOnly->execute();
+            } else {
+                $updateStock->bind_param('ddi', $qty, $cost, $ingredientId);
+                $updateStock->execute();
+            }
 
             $costHistory->bind_param('idsi', $ingredientId, $cost, $poDate, $poId);
             $costHistory->execute();
@@ -249,7 +260,7 @@ try {
             while ($sRes && $row = $sRes->fetch_assoc()) $suppliers[] = $row;
 
             $ingredients = [];
-            $iRes = $conn->query("SELECT i.ingredient_id, i.ingredient_name, i.unit,
+            $iRes = $conn->query("SELECT i.ingredient_id, i.ingredient_name, i.unit, i.fifo_group_key,
                                          i.stock, i.default_unit_cost, COALESCE(c.category_name,'Uncategorized') AS category
                                   FROM ingredients i
                                   LEFT JOIN categories c ON c.category_id = i.category_id

@@ -120,6 +120,7 @@ require_once '../backend/dbconn.php';
 
     <style>
     /* Inline page-specific overrides - base styles in inventory.css */
+    tr.ing-highlight { outline: 2px solid rgba(212, 175, 55, 0.9); outline-offset: 3px; border-radius: 8px; transition: outline-color 0.25s ease; }
     </style>
 
     <script>
@@ -245,7 +246,21 @@ require_once '../backend/dbconn.php';
                         </td>
                     `;
                     
+                    row.id = 'ing-row-' + ingredient.ingredient_id;
                     ingredientsTableBody.appendChild(row);
+                });
+                scrollToIngredientFromHash();
+            }
+
+            function scrollToIngredientFromHash() {
+                const m = /^#(\d+)$/.exec(window.location.hash || '');
+                if (!m) return;
+                const el = document.getElementById('ing-row-' + m[1]);
+                if (!el) return;
+                requestAnimationFrame(function() {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('ing-highlight');
+                    setTimeout(function() { el.classList.remove('ing-highlight'); }, 4500);
                 });
             }
 

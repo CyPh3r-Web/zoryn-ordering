@@ -7,6 +7,16 @@ require_once 'dbconn.php';
 require_once 'shift_access.php';
 session_start();
 
+function paymentActorId(): ?int {
+    if (!empty($_SESSION['user_id'])) {
+        return (int) $_SESSION['user_id'];
+    }
+    if (!empty($_SESSION['admin_id'])) {
+        return (int) $_SESSION['admin_id'];
+    }
+    return null;
+}
+
 // Handle different actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($_SESSION['user_id']) && strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier') {
@@ -42,6 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         case 'update_payment_method':
             updatePaymentMethod();
+            break;
+
+        case 'get_payment_methods':
+            getPaymentMethods();
             break;
             
         case 'upload_payment_proof':
@@ -200,6 +214,7 @@ function verifyPayment() {
         }
         
         $order_id = $_POST['order_id'];
+        $cashier_id = paymentActorId();
         
         // Start transaction
         $conn->begin_transaction();
@@ -207,11 +222,12 @@ function verifyPayment() {
         // Update payment status
         $stmt = $conn->prepare("
             UPDATE orders 
-            SET payment_status = 'verified'
+            SET payment_status = 'verified',
+                cashier_id = COALESCE(?, cashier_id)
             WHERE order_id = ?
         ");
         
-        $stmt->bind_param("i", $order_id);
+        $stmt->bind_param("ii", $cashier_id, $order_id);
         $stmt->execute();
         
         // Get order details for notification
@@ -387,6 +403,7 @@ function markAsPaid() {
         }
         
         $order_id = $_POST['order_id'];
+        $cashier_id = paymentActorId();
         
         // Start transaction
         $conn->begin_transaction();
@@ -395,6 +412,7 @@ function markAsPaid() {
         $stmt = $conn->prepare("
             UPDATE orders
             SET payment_status = 'verified',
+                cashier_id = COALESCE(?, cashier_id),
                 payment_type = CASE
                     WHEN payment_type IS NULL OR payment_type = '' THEN 'cash'
                     ELSE payment_type
@@ -407,7 +425,7 @@ function markAsPaid() {
               )
         ");
 
-        $stmt->bind_param("i", $order_id);
+        $stmt->bind_param("ii", $cashier_id, $order_id);
         
         if ($stmt->execute() && $stmt->affected_rows > 0) {
             // Get order details for notification
@@ -464,14 +482,19 @@ function updatePaymentStatus() {
         }
 
         $orderId = (int) $_POST['order_id'];
+        $cashierId = paymentActorId();
         $statusInput = strtolower(trim((string) $_POST['payment_status']));
-        $allowed = ['unpaid', 'pending', 'paid', 'verified'];
+        $allowed = ['unpaid', 'pending', 'paid', 'verified', 'charge_corp'];
         if (!in_array($statusInput, $allowed, true)) {
             throw new Exception('Invalid payment status');
         }
 
         // Keep compatibility with existing code that checks for "verified".
-        $dbStatus = ($statusInput === 'paid') ? 'verified' : $statusInput;
+        if ($statusInput === 'paid' || $statusInput === 'verified') {
+            $dbStatus = 'verified';
+        } else {
+            $dbStatus = $statusInput;
+        }
 
         $conn->begin_transaction();
 
@@ -483,8 +506,14 @@ function updatePaymentStatus() {
             throw new Exception('Order not found');
         }
 
-        $upd = $conn->prepare("UPDATE orders SET payment_status = ?, updated_at = NOW() WHERE order_id = ?");
-        $upd->bind_param("si", $dbStatus, $orderId);
+        $upd = $conn->prepare("
+            UPDATE orders
+            SET payment_status = ?,
+                cashier_id = CASE WHEN ? = 'verified' THEN COALESCE(?, cashier_id) ELSE cashier_id END,
+                updated_at = NOW()
+            WHERE order_id = ?
+        ");
+        $upd->bind_param("ssii", $dbStatus, $dbStatus, $cashierId, $orderId);
         $upd->execute();
 
         if ($dbStatus === 'verified' && ($order['payment_status'] ?? '') !== 'verified') {
@@ -527,6 +556,42 @@ function updatePaymentMethod() {
         $stmt->execute();
 
         echo json_encode(['success' => true, 'message' => 'Payment method updated']);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+}
+
+function getPaymentMethods() {
+    global $conn;
+
+    try {
+        if (empty($_SESSION['admin_id']) && (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'cashier')) {
+            throw new Exception('Unauthorized');
+        }
+
+        $sql = "
+            SELECT payment_method_id, method_code, method_name, requires_proof
+            FROM payment_methods
+            WHERE is_active = 1
+            ORDER BY payment_method_id ASC
+        ";
+        $result = $conn->query($sql);
+
+        if (!$result) {
+            throw new Exception('Failed to fetch payment methods');
+        }
+
+        $methods = [];
+        while ($row = $result->fetch_assoc()) {
+            $methods[] = [
+                'payment_method_id' => (int) ($row['payment_method_id'] ?? 0),
+                'method_code' => (string) ($row['method_code'] ?? ''),
+                'method_name' => (string) ($row['method_name'] ?? ''),
+                'requires_proof' => (int) ($row['requires_proof'] ?? 0)
+            ];
+        }
+
+        echo json_encode(['success' => true, 'methods' => $methods]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }

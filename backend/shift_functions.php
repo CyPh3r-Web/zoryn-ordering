@@ -18,6 +18,37 @@ function shift_is_cashier(): bool {
     return !empty($_SESSION['user_id']) && strtolower((string) ($_SESSION['role'] ?? '')) === 'cashier';
 }
 
+/**
+ * Sum verified cash orders for this cashier within the scheduled shift window
+ * (same cash rules as cashier sales_report; excludes opening float).
+ */
+function zoryn_shift_expected_cash_from_sales(mysqli $conn, int $cashierUserId, string $shiftDate, string $startTime, string $endTime): float {
+    try {
+        $tz = new DateTimeZone('Asia/Manila');
+        $start = (new DateTimeImmutable($shiftDate . ' ' . $startTime, $tz))->format('Y-m-d H:i:s');
+        $end = (new DateTimeImmutable($shiftDate . ' ' . $endTime, $tz))->format('Y-m-d H:i:s');
+    } catch (Throwable $e) {
+        return 0.0;
+    }
+    $stmt = $conn->prepare(
+        "SELECT COALESCE(SUM(o.total_amount), 0) AS totals
+        FROM orders o
+        WHERE o.order_status = 'completed'
+          AND (o.payment_status = 'verified' OR o.payment_status = 'paid')
+          AND LOWER(COALESCE(o.payment_type, 'cash')) = 'cash'
+          AND o.user_id = ?
+          AND o.created_at >= ?
+          AND o.created_at <= ?"
+    );
+    if (!$stmt) {
+        return 0.0;
+    }
+    $stmt->bind_param("iss", $cashierUserId, $start, $end);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return round((float) ($row['totals'] ?? 0), 2);
+}
+
 function assign_shift(): void {
     global $conn;
     if (!shift_is_admin()) {
@@ -95,7 +126,12 @@ function get_admin_shift_list(): void {
             c.count_100,
             c.count_50,
             c.count_20,
+            COALESCE(c.count_10, 0) AS count_10,
+            COALESCE(c.count_5, 0) AS count_5,
+            COALESCE(c.count_1, 0) AS count_1,
             c.total_cash,
+            COALESCE(c.expected_cash, 0) AS expected_cash,
+            COALESCE(c.cash_variance, 0) AS cash_variance,
             c.recorded_at
         FROM cashier_shifts s
         JOIN users u ON u.user_id = s.user_id
@@ -156,6 +192,9 @@ function submit_shift_cash_count(): void {
     $count100 = max(0, (int) ($payload['count_100'] ?? 0));
     $count50 = max(0, (int) ($payload['count_50'] ?? 0));
     $count20 = max(0, (int) ($payload['count_20'] ?? 0));
+    $count10 = max(0, (int) ($payload['count_10'] ?? 0));
+    $count5 = max(0, (int) ($payload['count_5'] ?? 0));
+    $count1 = max(0, (int) ($payload['count_1'] ?? 0));
 
     if ($shiftId <= 0) {
         echo json_encode(['success' => false, 'message' => 'Invalid shift']);
@@ -203,24 +242,39 @@ function submit_shift_cash_count(): void {
         return;
     }
 
-    $totalCash = ($count1000 * 1000) + ($count500 * 500) + ($count100 * 100) + ($count50 * 50) + ($count20 * 20);
+    $totalCash = ($count1000 * 1000) + ($count500 * 500) + ($count100 * 100) + ($count50 * 50) + ($count20 * 20)
+        + ($count10 * 10) + ($count5 * 5) + $count1;
+
+    $expectedCash = zoryn_shift_expected_cash_from_sales(
+        $conn,
+        $userId,
+        $shift['shift_date'],
+        $shift['start_time'],
+        $shift['end_time']
+    );
+    $cashVariance = round(((float) $totalCash) - $expectedCash, 2);
 
     $conn->begin_transaction();
     try {
         $insert = $conn->prepare("
             INSERT INTO cashier_shift_cash_counts
-            (shift_id, count_1000, count_500, count_100, count_50, count_20, total_cash, recorded_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (shift_id, count_1000, count_500, count_100, count_50, count_20, count_10, count_5, count_1, total_cash, expected_cash, cash_variance, recorded_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $insert->bind_param(
-            "iiiiiidi",
+            "iiiiiiiiidddi",
             $shiftId,
             $count1000,
             $count500,
             $count100,
             $count50,
             $count20,
+            $count10,
+            $count5,
+            $count1,
             $totalCash,
+            $expectedCash,
+            $cashVariance,
             $userId
         );
         $insert->execute();
@@ -230,7 +284,14 @@ function submit_shift_cash_count(): void {
         $update->execute();
 
         $conn->commit();
-        echo json_encode(['success' => true, 'message' => 'Shift cash count submitted', 'total_cash' => $totalCash]);
+        echo json_encode([
+            'success' => true,
+            'message' => 'Shift cash count submitted',
+            'total_cash' => $totalCash,
+            'expected_cash' => $expectedCash,
+            'cash_variance' => $cashVariance,
+            'cash_short_abs' => $cashVariance < 0 ? round(abs($cashVariance), 2) : 0,
+        ]);
     } catch (Throwable $e) {
         $conn->rollback();
         echo json_encode(['success' => false, 'message' => 'Failed to submit cash count']);

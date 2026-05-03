@@ -43,28 +43,21 @@ tailwind.config = {
 
         <!-- Right -->
         <div class="flex items-center gap-3">
-            <!-- Notifications -->
-            <div class="relative group">
-                <button class="w-9 h-9 flex items-center justify-center rounded-lg text-[#D4AF37]/70 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all duration-200 relative">
+            <!-- Notifications (live · admin_notifications_api.php) -->
+            <div class="relative" id="adminNotifWrap">
+                <button type="button" id="adminNotifBtn" aria-expanded="false" aria-haspopup="true" aria-controls="adminNotifDropdown" class="w-9 h-9 flex items-center justify-center rounded-lg text-[#D4AF37]/70 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all duration-200 relative">
                     <i class="fas fa-bell text-sm"></i>
-                    <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-[#0D0D0D]"></span>
+                    <span id="adminNotifDot" class="hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-[#0D0D0D]"></span>
                 </button>
-                <div class="hidden group-hover:block absolute right-0 top-full mt-2 w-80 bg-[#1F1F1F] border border-[#D4AF37]/10 rounded-xl shadow-2xl overflow-hidden z-[1000]" style="animation: slideDown 0.2s ease;">
-                    <div class="px-4 py-3 border-b border-[#2E2E2E] flex items-center justify-between">
+                <div id="adminNotifDropdown" class="hidden absolute right-0 top-full mt-2 w-[22rem] max-w-[calc(100vw-2rem)] bg-[#1F1F1F] border border-[#D4AF37]/10 rounded-xl shadow-2xl overflow-hidden z-[1000]" role="menu" style="animation: slideDown 0.2s ease;">
+                    <div class="px-4 py-3 border-b border-[#2E2E2E] flex items-center justify-between gap-2">
                         <h3 class="text-sm font-semibold text-[#D4AF37]">Notifications</h3>
-                        <span class="badge-pending text-[10px]">2 new</span>
+                        <span id="adminNotifCount" class="text-[10px] text-[#888] whitespace-nowrap">—</span>
                     </div>
-                    <div class="p-2">
-                        <div class="px-3 py-2.5 rounded-lg hover:bg-[#D4AF37]/5 transition flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-exclamation-triangle text-[10px] text-red-400"></i></div>
-                            <div><p class="text-sm text-[#B0B0B0]">Inventory low alert</p><span class="text-xs text-[#666]">30 minutes ago</span></div>
-                        </div>
-                        <div class="px-3 py-2.5 rounded-lg hover:bg-[#D4AF37]/5 transition flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/10 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-shopping-bag text-[10px] text-[#D4AF37]"></i></div>
-                            <div><p class="text-sm text-[#B0B0B0]">New order received</p><span class="text-xs text-[#666]">5 minutes ago</span></div>
-                        </div>
+                    <div id="adminNotifList" class="max-h-72 overflow-y-auto p-2 text-left">
+                        <p class="py-8 text-center text-xs text-[#555] px-4">Loading…</p>
                     </div>
-                    <a href="notifications.php" class="block text-center py-2.5 text-xs text-[#D4AF37] hover:bg-[#D4AF37]/5 border-t border-[#2E2E2E] transition">View All Notifications</a>
+                    <a href="notifications.php" class="block text-center py-2.5 text-xs text-[#D4AF37] hover:bg-[#D4AF37]/5 border-t border-[#2E2E2E] transition">View all</a>
                 </div>
             </div>
 
@@ -188,6 +181,108 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && adminCpModal && !adminCpModal.classList.contains('hidden')) closeAdminChangePasswordModal();
     });
+    (function setupAdminBell() {
+        const wrap = document.getElementById('adminNotifWrap');
+        const btn = document.getElementById('adminNotifBtn');
+        const drop = document.getElementById('adminNotifDropdown');
+        const list = document.getElementById('adminNotifList');
+        const dot = document.getElementById('adminNotifDot');
+        const countEl = document.getElementById('adminNotifCount');
+        if (!wrap || !btn || !drop || !list || !dot || !countEl) return;
+
+        function escHtml(s) {
+            const div = document.createElement('div');
+            div.textContent = s == null ? '' : String(s);
+            return div.innerHTML;
+        }
+
+        async function refreshAdminBell() {
+            try {
+                const r = await fetch('../backend/admin_notifications_api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'list' }),
+                    credentials: 'same-origin'
+                });
+                const j = await r.json();
+                if (!j.success) return;
+                const items = Array.isArray(j.notifications) ? j.notifications : [];
+                const unread = parseInt(j.unread_count || 0, 10) || 0;
+                dot.classList.toggle('hidden', unread <= 0);
+                countEl.textContent = unread > 0 ? unread + ' new' : '';
+                list.innerHTML = '';
+                if (items.length === 0) {
+                    list.innerHTML = '<div class="text-center py-8 text-[#666] text-xs">No notifications</div>';
+                    return;
+                }
+                items.slice(0, 25).forEach(function(n) {
+                    const isInv = String(n.notification_type || '') === 'inventory_low';
+                    const iconBg = isInv ? 'bg-red-500/10' : 'bg-[#D4AF37]/10';
+                    const icon = isInv ? 'fa-exclamation-triangle text-red-400' : 'fa-info text-[#D4AF37]';
+                    let when = '';
+                    if (n.created_at) try {
+                        const d = new Date(n.created_at);
+                        when = d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+                    } catch (_) {}
+                    const row = document.createElement('button');
+                    row.type = 'button';
+                    row.className = 'w-full text-left px-3 py-2.5 rounded-lg hover:bg-[#D4AF37]/5 transition flex items-start gap-3 mb-1 last:mb-0';
+                    row.dataset.id = String(n.id);
+                    row.dataset.link = String(n.link_url || '');
+                    row.dataset.oid = String(n.order_id || '0');
+                    row.innerHTML = '<div class="w-8 h-8 rounded-lg ' + iconBg + ' flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas ' + icon + ' text-[10px]"></i></div>'
+                        + '<div class="min-w-0"><p class="text-sm text-[#B0B0B0] leading-snug break-words">' + escHtml(n.message) + '</p>'
+                        + (when ? '<span class="text-[10px] text-[#555]">' + escHtml(when) + '</span>' : '')
+                        + '</div>';
+                    row.addEventListener('click', async function(ev) {
+                        ev.preventDefault();
+                        const nid = parseInt(row.dataset.id, 10);
+                        try {
+                            await fetch('../backend/admin_notifications_api.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'mark_read', id: nid }),
+                                credentials: 'same-origin'
+                            });
+                        } catch (_) {}
+                        const rawLink = row.dataset.link || '';
+                        let href = rawLink.trim();
+                        if (!href) {
+                            const oid = parseInt(row.dataset.oid, 10);
+                            href = oid > 0 ? 'orders.php' : 'inventory.php';
+                        }
+                        drop.classList.add('hidden');
+                        btn.setAttribute('aria-expanded', 'false');
+                        window.location.href = href;
+                    });
+                    list.appendChild(row);
+                });
+            } catch (e) {
+                list.innerHTML = '<div class="text-center py-8 text-[#884] text-xs">Could not load notifications</div>';
+            }
+        }
+
+        let polling = false;
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            drop.classList.toggle('hidden');
+            const open = !drop.classList.contains('hidden');
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open && !polling) {
+                polling = true;
+                refreshAdminBell().finally(function() { polling = false; });
+            }
+        });
+        document.addEventListener('click', function(ev) {
+            if (!wrap.contains(ev.target)) {
+                drop.classList.add('hidden');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+        refreshAdminBell();
+        setInterval(refreshAdminBell, 55000);
+    })();
+
     if (adminCpForm) {
         adminCpForm.addEventListener('submit', function(e) {
             e.preventDefault();

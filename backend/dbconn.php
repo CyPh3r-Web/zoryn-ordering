@@ -78,6 +78,12 @@
     zoryn_add_column_if_missing($conn, 'orders', 'table_number', "VARCHAR(20) DEFAULT NULL");
     zoryn_add_column_if_missing($conn, 'orders', 'subtotal',     "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
     zoryn_add_column_if_missing($conn, 'orders', 'tax_amount',   "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+    zoryn_add_column_if_missing($conn, 'orders', 'waiter_id',    "INT DEFAULT NULL");
+    zoryn_add_column_if_missing($conn, 'orders', 'cashier_id',   "INT DEFAULT NULL");
+
+    // Optional lookup indexes for staff traceability.
+    zoryn_silent_query($conn, "ALTER TABLE `orders` ADD KEY `idx_orders_waiter_id` (`waiter_id`)");
+    zoryn_silent_query($conn, "ALTER TABLE `orders` ADD KEY `idx_orders_cashier_id` (`cashier_id`)");
 
     // Widen order_type enum. MODIFY is idempotent.
     zoryn_silent_query($conn,
@@ -143,13 +149,46 @@
         `count_100` INT NOT NULL DEFAULT 0,
         `count_50` INT NOT NULL DEFAULT 0,
         `count_20` INT NOT NULL DEFAULT 0,
+        `count_10` INT NOT NULL DEFAULT 0,
+        `count_5` INT NOT NULL DEFAULT 0,
+        `count_1` INT NOT NULL DEFAULT 0,
         `total_cash` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+        `expected_cash` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+        `cash_variance` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
         `recorded_by` INT NOT NULL,
         `recorded_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (`cash_count_id`),
         UNIQUE KEY `uniq_shift_cash_count` (`shift_id`)
     ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci");
 
+    zoryn_add_column_if_missing($conn, 'cashier_shift_cash_counts', 'count_10',
+        "INT NOT NULL DEFAULT 0");
+    zoryn_add_column_if_missing($conn, 'cashier_shift_cash_counts', 'count_5',
+        "INT NOT NULL DEFAULT 0");
+    zoryn_add_column_if_missing($conn, 'cashier_shift_cash_counts', 'count_1',
+        "INT NOT NULL DEFAULT 0");
+    zoryn_add_column_if_missing($conn, 'cashier_shift_cash_counts', 'expected_cash',
+        "DECIMAL(12,2) NOT NULL DEFAULT 0.00");
+    zoryn_add_column_if_missing($conn, 'cashier_shift_cash_counts', 'cash_variance',
+        "DECIMAL(12,2) NOT NULL DEFAULT 0.00");
+
     // Rename legacy "user" role to "waiter" (non-destructive, idempotent)
     zoryn_silent_query($conn, "UPDATE users SET role = 'waiter' WHERE role = 'user'");
+
+    // Backfill historical rows so existing orders still show staff attribution.
+    zoryn_silent_query($conn, "UPDATE orders o
+        LEFT JOIN users u ON u.user_id = o.user_id
+        SET
+            o.waiter_id = CASE
+                WHEN o.waiter_id IS NULL AND u.role = 'waiter' THEN o.user_id
+                ELSE o.waiter_id
+            END,
+            o.cashier_id = CASE
+                WHEN o.cashier_id IS NULL AND u.role = 'cashier' THEN o.user_id
+                ELSE o.cashier_id
+            END
+        WHERE o.waiter_id IS NULL OR o.cashier_id IS NULL");
+
+    zoryn_add_column_if_missing($conn, 'ingredients', 'moisture_type',
+        "ENUM('dry','wet') NOT NULL DEFAULT 'dry'");
     ?>

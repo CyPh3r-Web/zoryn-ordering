@@ -10,6 +10,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stock = $_POST['ingredientStock'];
         $unit = $_POST['ingredientUnit'];
         $status = $_POST['ingredientStatus'];
+        $moisture_type = isset($_POST['ingredientMoisture']) ? $_POST['ingredientMoisture'] : 'dry';
+        if (!in_array($moisture_type, ['dry', 'wet'], true)) {
+            $moisture_type = 'dry';
+        }
+        $fifo_group_key = isset($_POST['fifo_group_key']) ? trim((string) $_POST['fifo_group_key']) : '';
+        if (strlen($fifo_group_key) > 64) {
+            throw new Exception('FIFO group key must be 64 characters or less.');
+        }
+        $fifo_group_key = $fifo_group_key === '' ? null : $fifo_group_key;
 
         // Handle image upload
         $imagePath = null;
@@ -29,8 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Prepare the SQL statement
-        $stmt = $conn->prepare("INSERT INTO ingredients (ingredient_name, image_path, category_id, stock, unit, status) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssidss", $ingredient_name, $imagePath, $category_id, $stock, $unit, $status);
+        $stmt = $conn->prepare("INSERT INTO ingredients (ingredient_name, image_path, category_id, fifo_group_key, stock, unit, moisture_type, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssisdsss", $ingredient_name, $imagePath, $category_id, $fifo_group_key, $stock, $unit, $moisture_type, $status);
 
         // Execute the statement
         if ($stmt->execute()) {

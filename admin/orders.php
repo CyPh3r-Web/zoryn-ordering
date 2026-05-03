@@ -50,7 +50,13 @@ if (!$isAdminUser && !$isKitchenUser) {
             background: rgba(220,53,69,0.15); color: #ff8b92;
         }
         .status-badge i { font-size: 10px; }
-        .action-buttons { display: flex; align-items: center; gap: 8px; }
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            min-width: 240px;
+        }
 
         /* Order-type badges */
         .type-badge {
@@ -377,6 +383,24 @@ if (!$isAdminUser && !$isKitchenUser) {
             font-size: 13px;
             outline: none;
         }
+        .payment-select:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .payment-type-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(212,175,55,0.12);
+            border: 1px solid rgba(212,175,55,0.25);
+            color: #f4d26b;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: capitalize;
+            white-space: nowrap;
+        }
 
         .verify-btn {
             margin-top: 15px; padding: 10px 20px;
@@ -389,6 +413,7 @@ if (!$isAdminUser && !$isKitchenUser) {
 
         .text-success { color: #78ebca !important; }
         .text-warning { color: #FDCB6E !important; }
+        .text-info { color: #8fcbff !important; }
 
         .payment-proof-modal { max-width: 90vw !important; max-height: 90vh !important; }
         .payment-proof-modal .swal2-image { max-width: 100%; max-height: 80vh; object-fit: contain; }
@@ -417,6 +442,186 @@ if (!$isAdminUser && !$isKitchenUser) {
             white-space: nowrap;
         }
 
+        /* Kitchen: station columns (menu category lanes) */
+        body.kitchen-layout .page-header h1 i { margin-right: 8px; }
+        body.kitchen-layout.hidden-table-view .orders-table-container { display: none; }
+        .kitchen-station-board {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            min-height: 420px;
+            scroll-snap-type: x proximity;
+        }
+        .kitchen-station {
+            flex: 0 0 min(280px, 88vw);
+            scroll-snap-align: start;
+            background: linear-gradient(180deg, rgba(25,25,28,0.95) 0%, rgba(16,16,18,1) 100%);
+            border: 1px solid rgba(212, 175, 55, 0.22);
+            border-radius: 16px;
+            min-height: 360px;
+            max-height: calc(100vh - 220px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .kitchen-station-header {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.14);
+            background: rgba(212, 175, 55, 0.06);
+        }
+        .kitchen-station-header h3 {
+            margin: 0;
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #f4d26b;
+            letter-spacing: 0.03em;
+        }
+        .kitchen-station-header .kitchen-station-count {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+        .kitchen-station-body {
+            padding: 10px;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .kitchen-station-empty {
+            color: #6b7280;
+            font-size: 12px;
+            text-align: center;
+            padding: 24px 8px;
+            font-style: italic;
+        }
+        .kitchen-ticket {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 10px 11px;
+        }
+        .kitchen-ticket.kitchen-ticket-completed {
+            opacity: 0.55;
+            border-color: rgba(0, 184, 148, 0.2);
+        }
+        .kitchen-ticket.kitchen-ticket-cancelled {
+            opacity: 0.45;
+            border-style: dashed;
+        }
+        .kitchen-ticket-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .kitchen-ticket-id {
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .kitchen-ticket-time {
+            font-size: 10px;
+            color: #9ca3af;
+            white-space: nowrap;
+        }
+        .kitchen-ticket-customer {
+            font-size: 12px;
+            color: #d1d5db;
+            margin-bottom: 6px;
+        }
+        .kitchen-ticket-lines {
+            list-style: none;
+            margin: 0 0 10px;
+            padding: 0;
+        }
+        .kitchen-ticket-lines li {
+            font-size: 13px;
+            font-weight: 600;
+            color: #f3f4f6;
+            padding: 5px 0;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: baseline;
+        }
+        .kitchen-ticket-lines li:first-child { border-top: none; }
+        .kitchen-ticket-lines .qty {
+            color: #f4d26b;
+            flex-shrink: 0;
+            font-variant-numeric: tabular-nums;
+        }
+        .kitchen-ticket-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .kitchen-ticket-actions .kitchen-btn-details {
+            background: transparent;
+            border: 1px solid rgba(212,175,55,0.35);
+            color: #f4d26b;
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+        }
+        .kitchen-ticket-actions .kitchen-btn-details:hover {
+            background: rgba(212,175,55,0.12);
+        }
+        .kitchen-board-empty {
+            text-align: center;
+            padding: 48px 16px;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        .kitchen-items-by-station {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .kitchen-modal-station-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #f4d26b;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(212,175,55,0.2);
+        }
+        .orders-table-container {
+            overflow-x: auto;
+        }
+        .orders-table {
+            width: 100%;
+            min-width: 980px;
+            table-layout: auto;
+        }
+        .orders-table thead th,
+        .orders-table tbody td {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        .orders-table thead th:nth-child(1),
+        .orders-table tbody td:nth-child(1) { min-width: 170px; }
+        .orders-table thead th:nth-child(2),
+        .orders-table tbody td:nth-child(2) { min-width: 180px; }
+        .orders-table thead th:nth-child(3),
+        .orders-table tbody td:nth-child(3) { min-width: 150px; }
+        .orders-table thead th:nth-child(4),
+        .orders-table tbody td:nth-child(4) { min-width: 90px; }
+        .orders-table thead th:last-child,
+        .orders-table tbody td:last-child { min-width: 300px; }
+
         @media (max-width: 680px) {
             .product-modal-header {
                 flex-direction: column;
@@ -433,7 +638,7 @@ if (!$isAdminUser && !$isKitchenUser) {
         }
     </style>
 </head>
-<body class="<?php echo $isKitchenUser ? 'kitchen-layout' : ''; ?>">
+<body class="<?php echo $isKitchenUser ? 'kitchen-layout hidden-table-view' : ''; ?>">
     <?php if ($isAdminUser): ?>
         <?php include("../navigation/admin-navbar.php");?>
         <?php include("../navigation/admin-sidebar.php");?>
@@ -449,7 +654,7 @@ if (!$isAdminUser && !$isKitchenUser) {
     <div class="main-content">
         <div class="orders-container">
             <div class="page-header">
-                <h1><i class="fas fa-receipt"></i>Orders Management</h1>
+                <h1><i class="fas <?php echo $isKitchenUser ? 'fa-utensils' : 'fa-receipt'; ?>"></i><?php echo $isKitchenUser ? 'Kitchen station board' : 'Orders Management'; ?></h1>
                 <div class="filter-bar">
                     <input type="date" id="orderDateFilter" placeholder="Filter by date">
                     <select id="orderTypeFilter" class="filter-select">
@@ -462,6 +667,12 @@ if (!$isAdminUser && !$isKitchenUser) {
                 </div>
             </div>
             
+            <?php if ($isKitchenUser): ?>
+            <div id="kitchenStationBoard" class="kitchen-station-board" aria-label="Kitchen stations by category">
+                <!-- Filled by loadOrders -->
+            </div>
+            <?php endif; ?>
+
             <!-- Orders Table -->
             <div class="orders-table-container">
                 <table class="orders-table">
@@ -484,6 +695,51 @@ if (!$isAdminUser && !$isKitchenUser) {
     
     <script>
         const IS_KITCHEN_VIEW = <?php echo $isKitchenUser ? 'true' : 'false'; ?>;
+        const KITCHEN_STATION_SLUG_ORDER = ['soup', 'noodles', 'pasta', 'fry', 'salad', 'soda_wares'];
+        function money(n) {
+            return parseFloat(n || 0).toFixed(2);
+        }
+        function computeVatBreakdown(items) {
+            let vatableSales = 0, vatAmount = 0, vatExemptSales = 0, total = 0;
+            (items || []).forEach(i => {
+                const lineTotal = parseFloat(i.price || 0) * parseInt(i.quantity || 0, 10);
+                const taxRate = parseFloat(i.tax_rate || 12);
+                total += lineTotal;
+                if (taxRate > 0) {
+                    const vatable = lineTotal / (1 + taxRate / 100);
+                    vatableSales += vatable;
+                    vatAmount += lineTotal - vatable;
+                } else {
+                    vatExemptSales += lineTotal;
+                }
+            });
+            return { vatableSales, vatAmount, vatExemptSales, total };
+        }
+        function printOrderReceipt(order) {
+            if (!order || !Array.isArray(order.items) || order.items.length === 0) {
+                Swal.fire({ title: 'No items to print', text: 'This order has no printable line items.', icon: 'warning', confirmButtonColor: '#D4AF37' });
+                return;
+            }
+            const createdAt = order.created_at ? new Date(order.created_at) : new Date();
+            const dateStr = createdAt.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+            const timeStr = createdAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+            let itemsHtml = '';
+            order.items.forEach(i => {
+                const qty = parseInt(i.quantity || 0, 10);
+                const price = parseFloat(i.price || 0);
+                const subtotal = price * qty;
+                itemsHtml += `<tr><td style="text-align:left">${i.product_name}</td><td style="text-align:center">${qty}</td><td style="text-align:right">₱${money(price)}</td><td style="text-align:right">₱${money(subtotal)}</td></tr>`;
+            });
+            const vat = computeVatBreakdown(order.items);
+            const vatHtml = `${vat.vatableSales > 0 ? `<div class="receipt-vat-row"><span>VATable Sales</span><span>₱${money(vat.vatableSales)}</span></div><div class="receipt-vat-row"><span>VAT (12%)</span><span>₱${money(vat.vatAmount)}</span></div>` : ''}${vat.vatExemptSales > 0 ? `<div class="receipt-vat-row"><span>VAT-Exempt Sales</span><span>₱${money(vat.vatExemptSales)}</span></div>` : ''}`;
+            const logoUrl = new URL('../assets/zoryn/zoryn_logo.jpg', window.location.href).href;
+            const orderTypeLabel = (order.order_type || 'walk-in').toString().replace(/\b\w/g, c => c.toUpperCase());
+            const receiptHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt #${order.order_id}</title><style>@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:#fff;color:#1a1a1a}.receipt{width:320px;margin:0 auto;padding:24px 20px}.receipt-logo{display:block;width:80px;height:80px;object-fit:cover;border-radius:50%;margin:0 auto 8px;border:2px solid #D4AF37}.receipt-brand{text-align:center;font-size:16px;font-weight:700;letter-spacing:1px;margin-bottom:2px}.receipt-tagline{text-align:center;font-size:10px;color:#888;margin-bottom:14px;letter-spacing:.5px}.receipt-divider{border:none;border-top:1px dashed #ccc;margin:10px 0}.receipt-meta{font-size:11px;color:#555;margin-bottom:3px;display:flex;justify-content:space-between}.receipt-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:11px}.receipt-table th{text-align:left;font-weight:600;font-size:10px;text-transform:uppercase;color:#888;letter-spacing:.5px;padding:4px 0;border-bottom:1px solid #ddd}.receipt-table td{padding:5px 0;vertical-align:top}.receipt-vat-row{display:flex;justify-content:space-between;font-size:10px;color:#666;padding:2px 0}.receipt-total{display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding:8px 0;border-top:2px solid #1a1a1a;margin-top:4px}.receipt-footer{text-align:center;margin-top:16px;font-size:10px;color:#999;line-height:1.6}.receipt-footer strong{color:#D4AF37;font-size:11px}@media print{@page{size:80mm auto;margin:0}.receipt{width:100%;padding:10px 8px}.no-print{display:none!important}}</style></head><body><div style="text-align:center;padding:16px 0" class="no-print"><button onclick="window.print()" style="padding:10px 28px;background:#D4AF37;color:#0D0D0D;border:none;border-radius:8px;font-weight:600;font-family:Poppins,sans-serif;cursor:pointer;font-size:14px;margin-right:8px"><i class="fas fa-print" style="margin-right:6px"></i>Print</button><button onclick="window.close()" style="padding:10px 28px;background:#2A2A2A;color:#B0B0B0;border:1px solid #ddd;border-radius:8px;font-weight:500;font-family:Poppins,sans-serif;cursor:pointer;font-size:14px">Close</button></div><div class="receipt"><img src="${logoUrl}" class="receipt-logo" alt="Zoryn" onerror="this.style.display='none'"><div class="receipt-brand">ZORYN RESTAURANT</div><div class="receipt-tagline">Taste the Excellence</div><hr class="receipt-divider"><div class="receipt-meta"><span>Date: ${dateStr}</span><span>${timeStr}</span></div><div class="receipt-meta"><span>Order #${order.order_id}</span></div><div class="receipt-meta"><span>Customer: ${order.customer_name || 'Guest'}</span></div><div class="receipt-meta"><span>Type: ${orderTypeLabel}</span>${order.table_number ? `<span>Table: ${order.table_number}</span>` : ''}</div><hr class="receipt-divider"><table class="receipt-table"><thead><tr><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsHtml}</tbody></table><hr class="receipt-divider">${vatHtml}<div class="receipt-total"><span>TOTAL</span><span>₱${money(vat.total)}</span></div><hr class="receipt-divider"><div class="receipt-footer"><strong>Thank you for dining with us!</strong><br>Please come again.<br>&mdash; Zoryn Restaurant &mdash;</div></div><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></body></html>`;
+            const receiptWindow = window.open('', '_blank', 'width=420,height=760');
+            if (!receiptWindow) return;
+            receiptWindow.document.write(receiptHtml);
+            receiptWindow.document.close();
+        }
         function canEditOrderLines(orderStatus) {
             if (IS_KITCHEN_VIEW) return false;
             const s = (orderStatus || '').toLowerCase();
@@ -608,10 +864,13 @@ if (!$isAdminUser && !$isKitchenUser) {
             });
         };
 
+        const PAYMENT_STATUS_LABELS = { paid: 'Paid', unpaid: 'Unpaid', pending: 'Pending', charge_corp: 'Charge to corp', verified: 'Paid' };
+
         window.updatePaymentStatus = function(orderId, paymentStatus) {
+            const statusLabel = PAYMENT_STATUS_LABELS[paymentStatus] || paymentStatus;
             Swal.fire({
                 title: 'Update payment status?',
-                text: `Set payment status to "${paymentStatus}"?`,
+                text: `Set payment status to "${statusLabel}"?`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#D4AF37',
@@ -734,6 +993,77 @@ if (!$isAdminUser && !$isKitchenUser) {
             return `<span class="type-badge ${m.cls}"><i class="fas ${m.icon}"></i>${m.label}${tableTag}</span>`;
         }
 
+        function kitchenTicketModifierClass(orderStatus) {
+            const s = (orderStatus || '').toLowerCase();
+            if (s === 'completed') return 'kitchen-ticket-completed';
+            if (s === 'cancelled') return 'kitchen-ticket-cancelled';
+            return '';
+        }
+
+        function kitchenOrderStatusButtons(order) {
+            const oid = order.order_id;
+            if (order.order_status === 'cancelled') {
+                return `<span class="status-badge cancelled"><i class="fas fa-ban"></i><span>Cancelled</span></span>`;
+            }
+            if (order.order_status === 'pending') {
+                return `<button type="button" class="status-btn preparing" data-order-id="${oid}"><i class="fas fa-utensils"></i><span>Prepare</span></button>`;
+            }
+            if (order.order_status === 'preparing') {
+                return `<button type="button" class="status-btn completed" data-order-id="${oid}"><i class="fas fa-check"></i><span>Complete</span></button>`;
+            }
+            return `<span class="status-badge completed"><i class="fas fa-check-circle"></i><span>Completed</span></span>`;
+        }
+
+        function renderKitchenStationBoard(stations) {
+            const board = document.getElementById('kitchenStationBoard');
+            if (!board) return;
+
+            const list = Array.isArray(stations) ? stations : [];
+            if (list.length === 0) {
+                board.innerHTML = '<div class="kitchen-board-empty">No stations configured. Add active menu categories in admin.</div>';
+                return;
+            }
+
+            board.innerHTML = list.map((st) => {
+                const ticketCount = (st.orders || []).length;
+                const body = ticketCount === 0
+                    ? '<div class="kitchen-station-empty">Clear — no items in queue</div>'
+                    : (st.orders || []).map((o) => {
+                        const cls = kitchenTicketModifierClass(o.order_status);
+                        const lines = (o.items || []).map((it) => `
+                            <li><span class="name">${it.product_name}</span><span class="qty">${it.quantity}×</span></li>
+                        `).join('');
+                        return `
+                            <article class="kitchen-ticket ${cls}">
+                                <div class="kitchen-ticket-top">
+                                    <div>
+                                        <div class="kitchen-ticket-id">#${o.order_id}</div>
+                                        <div class="kitchen-ticket-customer">${o.customer_name || 'Guest'}</div>
+                                    </div>
+                                    <div class="kitchen-ticket-time">${new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                </div>
+                                <div style="margin-bottom:8px;">${renderTypeBadge(o.order_type, o.table_number)}</div>
+                                <ul class="kitchen-ticket-lines">${lines}</ul>
+                                <div class="kitchen-ticket-actions">
+                                    <button type="button" class="kitchen-btn-details" data-order-id="${o.order_id}">Details</button>
+                                    ${kitchenOrderStatusButtons(o)}
+                                </div>
+                            </article>
+                        `;
+                    }).join('');
+
+                return `
+                    <section class="kitchen-station" data-category-id="${st.category_id}">
+                        <header class="kitchen-station-header">
+                            <h3>${st.category_name}</h3>
+                            <div class="kitchen-station-count">${ticketCount} ticket${ticketCount === 1 ? '' : 's'}</div>
+                        </header>
+                        <div class="kitchen-station-body">${body}</div>
+                    </section>
+                `;
+            }).join('');
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Load initial data
             loadOrders();
@@ -746,6 +1076,26 @@ if (!$isAdminUser && !$isKitchenUser) {
             function loadOrders() {
                 const dateFilter = document.getElementById('orderDateFilter').value;
                 const typeFilter = document.getElementById('orderTypeFilter').value;
+
+                if (IS_KITCHEN_VIEW) {
+                    const kParams = new URLSearchParams({ action: 'get_kitchen_station_board' });
+                    if (dateFilter) kParams.set('date', dateFilter);
+                    if (typeFilter) kParams.set('order_type', typeFilter);
+                    fetch('../backend/order_functions.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: kParams.toString()
+                    })
+                    .then((r) => r.json())
+                    .then((data) => {
+                        if (data.success) {
+                            renderKitchenStationBoard(data.stations);
+                        }
+                    })
+                    .catch((err) => console.error('Error loading kitchen board:', err));
+                    return;
+                }
+
                 const params = new URLSearchParams({ action: 'get_orders' });
                 if (dateFilter) params.set('date', dateFilter);
                 if (typeFilter) params.set('order_type', typeFilter);
@@ -767,12 +1117,18 @@ if (!$isAdminUser && !$isKitchenUser) {
                             const row = document.createElement('tr');
                             row.className = `order-row`;
                             
+                            const paymentTypeRaw = (order.payment_type || '').trim();
+                            const paymentTypeLabel = paymentTypeRaw
+                                ? paymentTypeRaw.charAt(0).toUpperCase() + paymentTypeRaw.slice(1)
+                                : 'Cash';
+
                             row.innerHTML = `
                                 <td>${order.customer_name}</td>
                                 <td>${new Date(order.created_at).toLocaleString()}</td>
                                 <td>${renderTypeBadge(order.order_type, order.table_number)}</td>
                                 ${IS_KITCHEN_VIEW ? '' : `<td>₱${parseFloat(order.total_amount).toFixed(2)}</td>`}
                                 <td class="action-buttons">
+                                    ${IS_KITCHEN_VIEW ? '' : `<span class="payment-type-chip"><i class="fas fa-credit-card"></i>${paymentTypeLabel}</span>`}
                                     <button class="action-btn view" data-order-id="${order.order_id}" data-action="view" title="View Order Details">
                                         <i class="fas fa-eye"></i>
                                         <span>View Details</span>
@@ -838,7 +1194,7 @@ if (!$isAdminUser && !$isKitchenUser) {
                                 : order.order_status === 'cancelled'
                                     ? 'fa-ban'
                                     : 'fa-check-circle';
-                        const itemsHtml = order.items && order.items.length > 0
+                        const itemsFlatHtml = order.items && order.items.length > 0
                             ? order.items.map(item => `
                                 <div class="order-item-card">
                                     <div class="order-item-image">
@@ -858,6 +1214,37 @@ if (!$isAdminUser && !$isKitchenUser) {
                                     </button>` : ''}
                                 </div>
                             `).join('')
+                            : '';
+                        const groupedKitchenItems = () => {
+                            const bySlug = new Map();
+                            (order.items || []).forEach((item) => {
+                                const slug = (item.kitchen_station || 'fry').toLowerCase();
+                                if (!bySlug.has(slug)) bySlug.set(slug, []);
+                                bySlug.get(slug).push(item);
+                            });
+                            const extras = [...bySlug.keys()].filter((s) => !KITCHEN_STATION_SLUG_ORDER.includes(s)).sort();
+                            const slugsOrdered = [...KITCHEN_STATION_SLUG_ORDER.filter((s) => bySlug.has(s)), ...extras];
+                            const renderStationChunk = (items) => items.map(item => `
+                                <div class="order-item-card">
+                                    <div class="order-item-image">
+                                        <img src="../${item.image_path || 'assets/images/products/default.jpg'}" alt="${item.product_name}" onerror="this.onerror=null;this.src='../assets/images/products/default.jpg';">
+                                    </div>
+                                    <div class="order-item-details">
+                                        <h4 class="order-item-name">${item.product_name}</h4>
+                                        <div class="order-item-meta">
+                                            <span class="order-item-pill">Qty: ${item.quantity}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+                            return slugsOrdered.map((slug) => {
+                                const bucket = bySlug.get(slug);
+                                const label = (bucket[0] && bucket[0].kitchen_station_label) ? bucket[0].kitchen_station_label : slug;
+                                return `<div class="kitchen-items-by-station"><div class="kitchen-modal-station-label">${label}</div>${renderStationChunk(bucket)}</div>`;
+                            }).join('');
+                        };
+                        const itemsHtml = order.items && order.items.length > 0
+                            ? (IS_KITCHEN_VIEW ? groupedKitchenItems() : itemsFlatHtml)
                             : '<span class="view-empty-note">No order items found.</span>';
 
                         const paymentTypeRaw = (order.payment_type || '').trim();
@@ -865,22 +1252,29 @@ if (!$isAdminUser && !$isKitchenUser) {
                         const displayTypeLabel = paymentTypeRaw
                             ? paymentTypeRaw.charAt(0).toUpperCase() + paymentTypeRaw.slice(1)
                             : 'Cash';
-                        const payStatusLabel = order.payment_status
-                            ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)
-                            : 'Pending';
-                        const payStatusCss = order.payment_status === 'verified' ? 'text-success' : 'text-warning';
-                        const canMarkPayment = !IS_KITCHEN_VIEW && order.order_status !== 'cancelled' && order.payment_status !== 'verified';
+                        const payStatusLabel = PAYMENT_STATUS_LABELS[(order.payment_status || '').toLowerCase()]
+                            || (order.payment_status
+                                ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1).replace(/_/g, ' ')
+                                : 'Pending');
+                        const payStatusCss = order.payment_status === 'verified' ? 'text-success'
+                            : ((order.payment_status || '').toLowerCase() === 'charge_corp' ? 'text-info' : 'text-warning');
+                        const isCancelledOrder = (order.order_status || '').toLowerCase() === 'cancelled';
+                        const canMarkPayment = !IS_KITCHEN_VIEW && !isCancelledOrder && order.payment_status !== 'verified';
 
                         const paymentStatusRaw = (order.payment_status || '').toLowerCase();
-                        const paymentSelectValue = paymentStatusRaw === 'verified' ? 'paid' : (paymentStatusRaw || 'unpaid');
-                        const cashAction = canMarkPayment ? `
+                        const paymentSelectValue = paymentStatusRaw === 'verified'
+                            ? 'paid'
+                            : (paymentStatusRaw === 'charge_corp' ? 'charge_corp' : (paymentStatusRaw || 'unpaid'));
+                        const cashAction = !IS_KITCHEN_VIEW ? `
                             <div class="proof-of-payment">
                                 <label style="display:block; margin-bottom:6px; font-size:12px; color:#9d9d9d;">Payment Status</label>
-                                <select class="payment-select" onchange="updatePaymentStatus(${order.order_id}, this.value)">
+                                <select class="payment-select" onchange="updatePaymentStatus(${order.order_id}, this.value)" ${(isCancelledOrder || paymentStatusRaw === 'verified') ? 'disabled' : ''}>
                                     <option value="unpaid" ${paymentSelectValue === 'unpaid' ? 'selected' : ''}>Unpaid</option>
                                     <option value="pending" ${paymentSelectValue === 'pending' ? 'selected' : ''}>Pending</option>
                                     <option value="paid" ${paymentSelectValue === 'paid' ? 'selected' : ''}>Paid</option>
+                                    <option value="charge_corp" ${paymentSelectValue === 'charge_corp' ? 'selected' : ''}>Charge to corp</option>
                                 </select>
+                                ${isCancelledOrder ? `<div class="view-empty-note" style="margin-top:8px;">Payment status cannot be changed for cancelled orders.</div>` : ''}
                             </div>` : '';
 
                         const onlineProof = canMarkPayment && pt !== 'cash' && order.proof_of_payment ? `
@@ -946,6 +1340,24 @@ if (!$isAdminUser && !$isKitchenUser) {
                                                 <div class="product-info-value">${order.customer_name}</div>
                                             </div>
                                         </div>
+                                    <div class="product-info-card">
+                                        <div class="product-info-icon">
+                                            <i class="fas fa-concierge-bell"></i>
+                                        </div>
+                                        <div class="product-info-content">
+                                            <div class="product-info-label">Waiter</div>
+                                            <div class="product-info-value">${order.waiter_name || 'Not recorded'}</div>
+                                        </div>
+                                    </div>
+                                    <div class="product-info-card">
+                                        <div class="product-info-icon">
+                                            <i class="fas fa-cash-register"></i>
+                                        </div>
+                                        <div class="product-info-content">
+                                            <div class="product-info-label">Cashier</div>
+                                            <div class="product-info-value">${order.cashier_name || 'Not recorded'}</div>
+                                        </div>
+                                    </div>
                                         <div class="product-info-card">
                                             <div class="product-info-icon">
                                                 <i class="fas ${orderTypeMeta(order.order_type).icon}"></i>
@@ -981,6 +1393,11 @@ if (!$isAdminUser && !$isKitchenUser) {
                                         <div class="order-items-list">
                                             ${itemsHtml}
                                         </div>
+                                        <div style="margin-top:12px;">
+                                            <button type="button" class="mark-paid-btn" id="print-receipt-btn">
+                                                <i class="fas fa-print"></i> Print Receipt
+                                            </button>
+                                        </div>
                                         ${IS_KITCHEN_VIEW ? '' : `
                                         <div class="order-total-bar">
                                             <div class="order-total-label">Total Amount</div>
@@ -1006,6 +1423,12 @@ if (!$isAdminUser && !$isKitchenUser) {
                                 confirmButton: 'swal-modern-product-confirm',
                                 denyButton: 'swal-modern-product-deny',
                                 closeButton: 'swal-modern-product-close'
+                            },
+                            didOpen: () => {
+                                const printBtn = document.getElementById('print-receipt-btn');
+                                if (printBtn) {
+                                    printBtn.addEventListener('click', () => printOrderReceipt(order));
+                                }
                             }
                         }).then((result) => {
                             if (result.isDenied) {
@@ -1027,6 +1450,13 @@ if (!$isAdminUser && !$isKitchenUser) {
             
             // Add event listeners for status buttons
             document.addEventListener('click', function(e) {
+                const kitchenDet = e.target.closest('.kitchen-btn-details');
+                if (kitchenDet) {
+                    e.preventDefault();
+                    const oid = kitchenDet.getAttribute('data-order-id');
+                    if (oid) viewOrderDetails(oid);
+                    return;
+                }
                 if (e.target.closest('.status-btn')) {
                     const button = e.target.closest('.status-btn');
                     const orderId = button.getAttribute('data-order-id');

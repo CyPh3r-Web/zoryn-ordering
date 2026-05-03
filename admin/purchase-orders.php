@@ -50,7 +50,7 @@ if (!isset($_SESSION['admin_id'])) {
             <div>
                 <span class="inline-flex items-center rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-yellow-300">Back Office</span>
                 <h1 class="mt-3 text-3xl font-bold tracking-tight md:text-4xl">Purchase Orders</h1>
-                <p class="mt-1 max-w-2xl text-sm text-gray-400">Record ingredient purchases. Saving a PO auto-increases stock, writes an expense, and updates unit costs.</p>
+                <p class="mt-1 max-w-2xl text-sm text-gray-400">Record ingredient purchases. Saving a PO receives stock as new FIFO layers (oldest used first), writes an expense, and updates unit costs. Set the same <span class="text-yellow-200/90">FIFO group key</span> on related ingredient SKUs (e.g. calamansi batches) so sales pull from whichever batch arrived first—even across different costing lines.</p>
             </div>
             <button id="newPoBtn" class="gold-btn inline-flex items-center gap-2 px-5 py-3 text-sm shadow-lg">
                 <i data-lucide="plus" class="h-4 w-4"></i> New Purchase Order
@@ -336,7 +336,7 @@ function addLine() {
     row.innerHTML = `
         <select class="po-input md:col-span-5 line-ingredient">
             <option value="">— Ingredient —</option>
-            ${ingredientList.map(i => `<option value="${i.ingredient_id}" data-unit="${i.unit}" data-cost="${i.default_unit_cost}">${i.ingredient_name} (stock ${Number(i.stock).toFixed(2)} ${i.unit})</option>`).join('')}
+            ${ingredientList.map(i => `<option value="${i.ingredient_id}" data-unit="${i.unit}" data-cost="${i.default_unit_cost}">${i.ingredient_name}${i.fifo_group_key ? ` [FIFO: ${i.fifo_group_key}]` : ''} (stock ${Number(i.stock).toFixed(2)} ${i.unit})</option>`).join('')}
         </select>
         <input type="number" step="0.01" min="0" placeholder="Qty" class="po-input md:col-span-2 line-qty">
         <input type="text"   class="po-input md:col-span-2 line-unit" placeholder="Unit">

@@ -6,6 +6,7 @@ header('Content-Type: application/json');
 require_once 'dbconn.php';
 require_once 'update_inventory.php';
 require_once 'shift_access.php';
+require_once 'kitchen_stations_helper.php';
 session_start();
 
 function assertCanManageOrders() {
@@ -193,6 +194,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'get_orders':
             getOrders();
             break;
+
+        case 'get_kitchen_station_board':
+            getKitchenStationBoard();
+            break;
             
         case 'get_user_orders':
             getUserOrders();
@@ -261,9 +266,13 @@ function getOrders() {
     $orderStatus = isset($_POST['order_status']) ? $_POST['order_status'] : null;
     $orderType = isset($_POST['order_type']) ? $_POST['order_type'] : null;
     
-    $query = "SELECT o.*, 
+    $query = "SELECT o.*,
+              COALESCE(w.full_name, w.username) AS waiter_name,
+              COALESCE(c.full_name, c.username) AS cashier_name,
               (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.order_id) as item_count
               FROM orders o
+              LEFT JOIN users w ON w.user_id = o.waiter_id
+              LEFT JOIN users c ON c.user_id = o.cashier_id
               WHERE 1=1";
     
     $params = [];
@@ -315,6 +324,129 @@ function getOrders() {
     }
     
     echo json_encode(['success' => true, 'orders' => $orders]);
+}
+
+/**
+ * Orders grouped by fixed kitchen station (six lanes) from products.kitchen_station.
+ */
+function getKitchenStationBoard() {
+    global $conn;
+    if (!canViewOrders() || !isKitchenRoleSession()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        return;
+    }
+
+    $dateFilter = isset($_POST['date']) ? trim((string) $_POST['date']) : '';
+    $orderType = isset($_POST['order_type']) ? trim((string) $_POST['order_type']) : '';
+
+    $whereOrders = [];
+    $params = [];
+    $types = '';
+
+    if ($dateFilter !== '') {
+        $whereOrders[] = 'DATE(o.created_at) = ?';
+        $params[] = $dateFilter;
+        $types .= 's';
+    }
+    if ($orderType !== '') {
+        $whereOrders[] = 'o.order_type = ?';
+        $params[] = $orderType;
+        $types .= 's';
+    }
+
+    $orderWhereSql = $whereOrders === [] ? '1=1' : implode(' AND ', $whereOrders);
+
+    // kitchen_station ENUM on products; normalize invalid DB values server-side.
+    $sql = "
+        SELECT 
+            COALESCE(NULLIF(TRIM(p.kitchen_station), ''), 'fry') AS station_slug,
+            o.order_id,
+            o.customer_name,
+            o.created_at,
+            o.order_type,
+            o.table_number,
+            o.order_status,
+            oi.order_item_id,
+            oi.quantity,
+            p.product_name
+        FROM order_items oi
+        INNER JOIN orders o ON oi.order_id = o.order_id
+        INNER JOIN products p ON oi.product_id = p.product_id
+        WHERE {$orderWhereSql}
+        ORDER BY o.created_at ASC, o.order_id ASC
+    ";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Kitchen board query failed. Run DB migration for products.kitchen_station if missing.',
+        ]);
+        return;
+    }
+    if ($types !== '') {
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    $groupsByStation = [];
+
+    while ($row = $res->fetch_assoc()) {
+        $slug = zoryn_normalize_kitchen_station($row['station_slug'] ?? 'fry');
+        $oid = (int) $row['order_id'];
+
+        if (!isset($groupsByStation[$slug])) {
+            $groupsByStation[$slug] = [
+                'station' => $slug,
+                'category_name' => zoryn_kitchen_station_label($slug),
+                'category_id' => $slug,
+                'orders' => [],
+            ];
+        }
+
+        if (!isset($groupsByStation[$slug]['orders'][$oid])) {
+            $groupsByStation[$slug]['orders'][$oid] = [
+                'order_id' => $oid,
+                'customer_name' => $row['customer_name'],
+                'created_at' => $row['created_at'],
+                'order_type' => $row['order_type'],
+                'table_number' => $row['table_number'],
+                'order_status' => $row['order_status'],
+                'items' => [],
+            ];
+        }
+
+        $groupsByStation[$slug]['orders'][$oid]['items'][] = [
+            'order_item_id' => (int) $row['order_item_id'],
+            'product_name' => $row['product_name'],
+            'quantity' => (int) $row['quantity'],
+        ];
+    }
+
+    $stations = [];
+    foreach (zoryn_kitchen_station_slugs_ordered() as $slug) {
+        if (isset($groupsByStation[$slug])) {
+            $entry = $groupsByStation[$slug];
+            $entry['orders'] = array_values($entry['orders']);
+        } else {
+            $entry = [
+                'station' => $slug,
+                'category_id' => $slug,
+                'category_name' => zoryn_kitchen_station_label($slug),
+                'orders' => [],
+            ];
+        }
+        $stations[] = $entry;
+        unset($groupsByStation[$slug]);
+    }
+
+    foreach ($groupsByStation as $entry) {
+        $entry['orders'] = array_values($entry['orders']);
+        $stations[] = $entry;
+    }
+
+    echo json_encode(['success' => true, 'stations' => $stations]);
 }
 
 function getUserOrders() {
@@ -380,9 +512,13 @@ function getOrderDetails() {
     
     // Get order details
     $stmt = $conn->prepare("
-        SELECT o.*, 
+        SELECT o.*,
+               COALESCE(w.full_name, w.username) AS waiter_name,
+               COALESCE(c.full_name, c.username) AS cashier_name,
                (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.order_id) as item_count
         FROM orders o
+        LEFT JOIN users w ON w.user_id = o.waiter_id
+        LEFT JOIN users c ON c.user_id = o.cashier_id
         WHERE o.order_id = ?
     ");
     $stmt->bind_param("i", $orderId);
@@ -393,9 +529,14 @@ function getOrderDetails() {
     if ($order) {
         // Get order items with product images
         $stmt = $conn->prepare("
-            SELECT oi.*, p.product_name, p.image_path
+            SELECT oi.*, p.product_name, p.image_path,
+                   COALESCE(NULLIF(TRIM(p.kitchen_station), ''), 'fry') AS kitchen_station_slug,
+                   COALESCE(pc.category_id, 0) AS menu_category_id,
+                   COALESCE(pc.category_name, 'Uncategorized') AS menu_category_name
             FROM order_items oi
             JOIN products p ON oi.product_id = p.product_id
+            LEFT JOIN product_categories pc ON p.category_id = pc.category_id
+                AND pc.status = 'active'
             WHERE oi.order_id = ?
         ");
         $stmt->bind_param("i", $orderId);
@@ -404,6 +545,10 @@ function getOrderDetails() {
         
         $items = [];
         while ($row = $result->fetch_assoc()) {
+            $ks = zoryn_normalize_kitchen_station($row['kitchen_station_slug'] ?? 'fry');
+            $row['kitchen_station'] = $ks;
+            $row['kitchen_station_label'] = zoryn_kitchen_station_label($ks);
+            unset($row['kitchen_station_slug']);
             if ($isKitchenRole) {
                 $row['price'] = null;
             }

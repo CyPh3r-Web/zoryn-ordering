@@ -1,4 +1,12 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (!isset($_SESSION['admin_id'])) {
+    header('Location: admin_login.php');
+    exit();
+}
+
 function renderProductsIcon($name, $class = 'h-4 w-4') {
     $baseClass = htmlspecialchars($class, ENT_QUOTES, 'UTF-8');
     $icons = [
@@ -16,6 +24,27 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
 
     return $icons[$name] ?? '';
 }
+
+/** Kitchen expo lane — must match backend enum products.kitchen_station */
+function render_kitchen_station_options(?string $selected = null): string
+{
+    $stations = [
+        ['soup', 'Soup'],
+        ['noodles', 'Noodles'],
+        ['pasta', 'Pasta'],
+        ['fry', 'Fry'],
+        ['salad', 'Salad'],
+        ['soda_wares', 'Soda/wares'],
+    ];
+    $html = '';
+    foreach ($stations as [$val, $label]) {
+        $sel = ($selected !== null && $selected === $val) ? ' selected' : '';
+        $html .= '<option value="' . htmlspecialchars($val, ENT_QUOTES, 'UTF-8') . '"' . $sel . '>'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</option>';
+    }
+    return $html;
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -79,6 +108,63 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
             font-weight: 600;
             color: #c9a227;
             margin: 4px 0 0;
+        }
+        .ingredients-split-wrap {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            align-items: start;
+        }
+        @media (max-width: 960px) {
+            .ingredients-split-wrap {
+                grid-template-columns: 1fr;
+            }
+        }
+        .ingredient-pane-title {
+            margin: 0 0 10px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #c9a227;
+        }
+        .ingredient-moisture-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: capitalize;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .ingredient-moisture-dry {
+            background: rgba(180,160,120,0.2);
+            color: #c4b896;
+            border: 1px solid rgba(180,160,120,0.35);
+        }
+        .ingredient-moisture-wet {
+            background: rgba(100,170,210,0.18);
+            color: #9ec8e8;
+            border: 1px solid rgba(100,170,210,0.35);
+        }
+        .ingredient-filter-hidden {
+            display: none !important;
+        }
+        .select-ingredients-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+            max-height: 55vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        @media (max-width: 720px) {
+            .select-ingredients-split {
+                grid-template-columns: 1fr;
+                max-height: none;
+            }
         }
         .modal-content {
             background-color: #1F1F1F;
@@ -157,6 +243,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                         <th>Image</th>
                                         <th>Name</th>
                                         <th>Category</th>
+                                        <th>Station</th>
                                         <th>Price</th>
                                         <th>Est. COGS</th>
                                         <th>VAT</th>
@@ -180,22 +267,43 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                             </button>
                         </div>
                         
-                        <div class="ingredients-table-container">
-                            <table class="ingredients-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Category</th>
-                                        <th>Stock</th>
-                                        <th>Unit cost</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Ingredients will be populated dynamically -->
-                                </tbody>
-                            </table>
+                        <div class="ingredients-split-wrap">
+                            <div class="ingredients-pane">
+                                <h3 class="ingredient-pane-title">Dry ingredients</h3>
+                                <div class="ingredients-table-container">
+                                    <table class="ingredients-table" id="ingredients-table-dry">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Category</th>
+                                                <th>Stock</th>
+                                                <th>Unit cost</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="ingredients-pane">
+                                <h3 class="ingredient-pane-title">Wet ingredients</h3>
+                                <div class="ingredients-table-container">
+                                    <table class="ingredients-table" id="ingredients-table-wet">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Category</th>
+                                                <th>Stock</th>
+                                                <th>Unit cost</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -217,6 +325,14 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                         <input type="text" id="productName" name="productName" required>
                     </div>
                     
+                    <div class="form-group">
+                        <label for="productKitchenStation">Kitchen station</label>
+                        <select id="productKitchenStation" name="productKitchenStation" required>
+                            <?= render_kitchen_station_options('fry') ?>
+                        </select>
+                        <small style="display:block;margin-top:4px;font-size:11px;color:#888;">Shown on kitchen board (Soup → Soda/wares).</small>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="productCategory">Category</label>
@@ -305,6 +421,10 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                         <label for="ingredientName">Ingredient Name</label>
                         <input type="text" id="ingredientName" name="ingredientName" required>
                     </div>
+                    <div class="form-group">
+                        <label for="ingredientFifoGroup">FIFO group key <span style="opacity:.65;font-weight:400;font-size:.85em">(optional)</span></label>
+                        <input type="text" id="ingredientFifoGroup" name="fifo_group_key" maxlength="64" placeholder="e.g. calamansi_pool — shared first-in-first-out pool">
+                    </div>
                     
                     <div class="form-row">
                         <div class="form-group">
@@ -317,6 +437,13 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                 <option value="dairy">Dairy</option>
                                 <option value="topping">Topping</option>
                                 <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ingredientMoisture">Dry / wet</label>
+                            <select id="ingredientMoisture" name="ingredientMoisture" required>
+                                <option value="dry">Dry</option>
+                                <option value="wet">Wet</option>
                             </select>
                         </div>
                         
@@ -368,11 +495,18 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
             </div>
             <div class="modal-body">
                 <div class="ingredients-search">
-                    <input type="text" id="searchIngredients" placeholder="Search ingredients...">
+                    <input type="text" id="searchIngredients" placeholder="Search dry and wet ingredients...">
                 </div>
                 
-                <div class="ingredients-list">
-                    <!-- Ingredients will be populated dynamically -->
+                <div class="select-ingredients-split">
+                    <div class="select-ingredients-pane">
+                        <h4 class="ingredient-pane-title">Dry ingredients</h4>
+                        <div class="ingredients-list ingredients-list-dry"></div>
+                    </div>
+                    <div class="select-ingredients-pane">
+                        <h4 class="ingredient-pane-title">Wet ingredients</h4>
+                        <div class="ingredients-list ingredients-list-wet"></div>
+                    </div>
                 </div>
                 
                 <div class="selected-ingredients-preview">
@@ -405,6 +539,13 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                         <input type="text" id="editProductName" name="productName" required>
                     </div>
                     
+                    <div class="form-group">
+                        <label for="editProductKitchenStation">Kitchen station</label>
+                        <select id="editProductKitchenStation" name="productKitchenStation" required>
+                            <?= render_kitchen_station_options(null) ?>
+                        </select>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="editProductCategory">Category</label>
@@ -537,6 +678,10 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                 return icons[name] || '';
             }
 
+            function ingredientMoistureType(ingredient) {
+                return ingredient && String(ingredient.moisture_type).toLowerCase() === 'wet' ? 'wet' : 'dry';
+            }
+
             function resetIngredientSelectionModal() {
                 document.querySelectorAll('#selectIngredientsModal .ingredient-item').forEach(item => {
                     item.classList.remove('selected');
@@ -550,6 +695,8 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                 });
 
                 document.getElementById('selectedIngredientsPreview').innerHTML = '';
+                document.querySelectorAll('#selectIngredientsModal .ingredient-filter-hidden').forEach(el =>
+                    el.classList.remove('ingredient-filter-hidden'));
             }
 
             function renderSelectedIngredientTags(containerId, selectedIngredients) {
@@ -609,6 +756,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                 const form = document.getElementById('addIngredientForm');
                 form.reset();
                 document.getElementById('ingredientId').value = '';
+                document.getElementById('ingredientMoisture').value = 'dry';
                 document.getElementById('addIngredientModal').style.display = 'flex';
                 document.querySelector('#addIngredientModal .modal-header h2').textContent = 'Add New Ingredient';
                 document.querySelector('#addIngredientForm .save-btn').textContent = 'Save Ingredient';
@@ -748,14 +896,18 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
 
             // Function to populate ingredients table
             function populateIngredientsTable() {
-                const tbody = document.querySelector('.ingredients-table tbody');
-                tbody.innerHTML = ''; // Clear existing rows
+                const tbodyDry = document.querySelector('#ingredients-table-dry tbody');
+                const tbodyWet = document.querySelector('#ingredients-table-wet tbody');
+                if (tbodyDry) tbodyDry.innerHTML = '';
+                if (tbodyWet) tbodyWet.innerHTML = '';
 
                 if (ingredients && ingredients.length > 0) {
                     ingredients.forEach(ingredient => {
                         const row = document.createElement('tr');
+                        const moisture = ingredientMoistureType(ingredient);
+                        const pillCls = moisture === 'wet' ? 'ingredient-moisture-wet' : 'ingredient-moisture-dry';
                         row.innerHTML = `
-                            <td>${ingredient.ingredient_name}</td>
+                            <td><span class="ingredient-moisture-pill ${pillCls}">${moisture}</span>${ingredient.ingredient_name}</td>
                             <td>${ingredient.category_name}</td>
                             <td>${ingredient.stock} ${ingredient.unit}</td>
                             <td>₱${parseFloat(ingredient.default_unit_cost || 0).toFixed(2)} <span style="color:#888;font-size:12px">/${ingredient.unit}</span></td>
@@ -772,56 +924,48 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                 </button>
                             </td>
                         `;
-                        tbody.appendChild(row);
+                        (moisture === 'wet' ? tbodyWet : tbodyDry).appendChild(row);
                     });
-                } else {
-                    // Show a message when no ingredients are available
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td colspan="6" class="text-center">No ingredients available</td>
-                    `;
-                    tbody.appendChild(row);
                 }
 
-                // Update the ingredients count in the summary panel
+                [tbodyDry, tbodyWet].forEach((tb, idx) => {
+                    if (!tb || tb.children.length) return;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td colspan="6" class="text-center">No ${idx === 0 ? 'dry' : 'wet'} ingredients yet</td>`;
+                    tb.appendChild(row);
+                });
+
                 document.querySelector('#totalIngredientsPanel .panel-count').textContent = ingredients ? ingredients.length : 0;
             }
 
             // Function to filter ingredients based on search query
             function filterIngredients(searchQuery) {
-                const ingredientsList = document.querySelector('.ingredients-list');
-                const items = ingredientsList.querySelectorAll('.ingredient-item');
-                
+                const splitRoot = document.querySelector('#selectIngredientsModal .select-ingredients-split');
+                if (!splitRoot) return;
+
                 searchQuery = searchQuery.toLowerCase().trim();
-                
-                items.forEach(item => {
+
+                splitRoot.querySelectorAll('.no-results-message').forEach(el => el.remove());
+
+                splitRoot.querySelectorAll('.ingredient-item').forEach(item => {
                     const ingredientName = item.querySelector('.ingredient-name').textContent.toLowerCase();
                     const ingredientCategory = item.querySelector('.ingredient-category').textContent.toLowerCase();
-                    
-                    if (ingredientName.includes(searchQuery) || ingredientCategory.includes(searchQuery)) {
-                        item.style.display = '';
-                    } else {
-                        item.style.display = 'none';
+                    const matches = !searchQuery || ingredientName.includes(searchQuery) || ingredientCategory.includes(searchQuery);
+                    item.classList.toggle('ingredient-filter-hidden', !matches);
+                });
+
+                splitRoot.querySelectorAll('.ingredients-list').forEach(listEl => {
+                    const visible = listEl.querySelectorAll('.ingredient-item:not(.ingredient-filter-hidden)').length;
+                    if (searchQuery && visible === 0) {
+                        const msg = document.createElement('div');
+                        msg.className = 'no-results-message';
+                        msg.innerHTML = `
+                            <span class="premium-empty-icon">${premiumIcon('search', 'h-5 w-5')}</span>
+                            <p>No matches in this section</p>
+                        `;
+                        listEl.appendChild(msg);
                     }
                 });
-                
-                // Show "no results" message if no items are visible
-                const visibleItems = ingredientsList.querySelectorAll('.ingredient-item[style=""]').length;
-                let noResultsMessage = ingredientsList.querySelector('.no-results-message');
-                
-                if (visibleItems === 0) {
-                    if (!noResultsMessage) {
-                        noResultsMessage = document.createElement('div');
-                        noResultsMessage.className = 'no-results-message';
-                        noResultsMessage.innerHTML = `
-                            <span class="premium-empty-icon">${premiumIcon('search', 'h-5 w-5')}</span>
-                            <p>No ingredients found matching "${searchQuery}"</p>
-                        `;
-                        ingredientsList.appendChild(noResultsMessage);
-                    }
-                } else if (noResultsMessage) {
-                    noResultsMessage.remove();
-                }
             }
 
             // Add event listener for search input
@@ -831,86 +975,89 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
 
             // Function to populate ingredients list in the select ingredients modal
             function populateIngredientsList() {
-                const ingredientsList = document.querySelector('.ingredients-list');
-                ingredientsList.innerHTML = ''; // Clear existing items
+                const listDry = document.querySelector('#selectIngredientsModal .ingredients-list-dry');
+                const listWet = document.querySelector('#selectIngredientsModal .ingredients-list-wet');
+                [listDry, listWet].forEach(el => { if (el) el.innerHTML = ''; });
+
+                const appendIngredientCard = (ingredient, targetList) => {
+                    if (!targetList) return;
+                    const item = document.createElement('div');
+                    item.className = 'ingredient-item';
+                    const moisture = ingredientMoistureType(ingredient);
+                    const pillCls = moisture === 'wet' ? 'ingredient-moisture-wet' : 'ingredient-moisture-dry';
+
+                    const img = document.createElement('img');
+                    img.className = 'ingredient-image';
+                    img.alt = ingredient.ingredient_name;
+                    if (ingredient.image_path) {
+                        img.src = '../' + ingredient.image_path;
+                        img.onerror = function() {
+                            this.src = '../assets/images/ingredients/default.jpg';
+                        };
+                    } else {
+                        img.src = '../assets/images/ingredients/default.jpg';
+                    }
+
+                    item.innerHTML = `
+                        <div class="ingredient-content">
+                            <div class="ingredient-header">
+                                <div class="ingredient-checkbox">
+                                    <input type="checkbox" id="ing${ingredient.ingredient_id}" name="ingredients[]" value="${ingredient.ingredient_id}">
+                                    <label for="ing${ingredient.ingredient_id}" class="ingredient-name">
+                                        <span class="ingredient-moisture-pill ${pillCls}">${moisture}</span>${ingredient.ingredient_name}
+                                    </label>
+                                </div>
+                                <span class="ingredient-category">${ingredient.category_name}</span>
+                            </div>
+                            <div class="ingredient-stock">
+                                <span class="premium-inline-icon premium-stock-icon">${premiumIcon('stock')}</span>
+                                <span>Current Stock: ${ingredient.stock} ${ingredient.unit}</span>
+                            </div>
+                            <div class="ingredient-unit-cost">Unit cost: ₱${parseFloat(ingredient.default_unit_cost || 0).toFixed(2)} / ${ingredient.unit}</div>
+                            <div class="ingredient-inputs">
+                                <div class="input-group">
+                                    <label>Amount</label>
+                                    <input type="number" class="ingredient-measurement" placeholder="0.00" min="0" step="0.01">
+                                </div>
+                                <div class="input-group">
+                                    <label>Unit</label>
+                                    <select class="ingredient-unit">
+                                        <option value="${ingredient.unit}" selected>${ingredient.unit}</option>
+                                        ${getUnitOptions(ingredient.unit)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    item.insertBefore(img, item.firstChild);
+
+                    const checkbox = item.querySelector('input[type="checkbox"]');
+                    checkbox.addEventListener('change', function() {
+                        item.classList.toggle('selected', this.checked);
+                        updateSelectedIngredientsPreview();
+                    });
+
+                    const measurementInput = item.querySelector('.ingredient-measurement');
+                    measurementInput.addEventListener('input', function() {
+                        if (checkbox.checked) {
+                            updateSelectedIngredientsPreview();
+                        }
+                    });
+
+                    const unitSelect = item.querySelector('.ingredient-unit');
+                    unitSelect.addEventListener('change', function() {
+                        if (checkbox.checked) {
+                            updateSelectedIngredientsPreview();
+                        }
+                    });
+
+                    targetList.appendChild(item);
+                };
 
                 if (ingredients && ingredients.length > 0) {
                     ingredients.forEach(ingredient => {
-                        const item = document.createElement('div');
-                        item.className = 'ingredient-item';
-                        
-                        // Create image element with error handling
-                        const img = document.createElement('img');
-                        img.className = 'ingredient-image';
-                        img.alt = ingredient.ingredient_name;
-                        
-                        // Set image source with fallback
-                        if (ingredient.image_path) {
-                            img.src = '../' + ingredient.image_path;
-                            img.onerror = function() {
-                                this.src = '../assets/images/ingredients/default.jpg';
-                            };
-                        } else {
-                            img.src = '../assets/images/ingredients/default.jpg';
-                        }
-                        
-                        item.innerHTML = `
-                            <div class="ingredient-content">
-                                <div class="ingredient-header">
-                                    <div class="ingredient-checkbox">
-                                        <input type="checkbox" id="ing${ingredient.ingredient_id}" name="ingredients[]" value="${ingredient.ingredient_id}">
-                                        <label for="ing${ingredient.ingredient_id}" class="ingredient-name">${ingredient.ingredient_name}</label>
-                                    </div>
-                                    <span class="ingredient-category">${ingredient.category_name}</span>
-                                </div>
-                                <div class="ingredient-stock">
-                                    <span class="premium-inline-icon premium-stock-icon">${premiumIcon('stock')}</span>
-                                    <span>Current Stock: ${ingredient.stock} ${ingredient.unit}</span>
-                                </div>
-                                <div class="ingredient-unit-cost">Unit cost: ₱${parseFloat(ingredient.default_unit_cost || 0).toFixed(2)} / ${ingredient.unit}</div>
-                                <div class="ingredient-inputs">
-                                    <div class="input-group">
-                                        <label>Amount</label>
-                                        <input type="number" class="ingredient-measurement" placeholder="0.00" min="0" step="0.01">
-                                    </div>
-                                    <div class="input-group">
-                                        <label>Unit</label>
-                                        <select class="ingredient-unit">
-                                            <option value="${ingredient.unit}" selected>${ingredient.unit}</option>
-                                            ${getUnitOptions(ingredient.unit)}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        
-                        // Insert image at the beginning of the card
-                        item.insertBefore(img, item.firstChild);
-                        
-                        // Add change event to the checkbox
-                        const checkbox = item.querySelector('input[type="checkbox"]');
-                        checkbox.addEventListener('change', function() {
-                            item.classList.toggle('selected', this.checked);
-                            updateSelectedIngredientsPreview();
-                        });
-                        
-                        // Add input event to the measurement field
-                        const measurementInput = item.querySelector('.ingredient-measurement');
-                        measurementInput.addEventListener('input', function() {
-                            if (checkbox.checked) {
-                                updateSelectedIngredientsPreview();
-                            }
-                        });
-                        
-                        // Add change event to the unit select
-                        const unitSelect = item.querySelector('.ingredient-unit');
-                        unitSelect.addEventListener('change', function() {
-                            if (checkbox.checked) {
-                                updateSelectedIngredientsPreview();
-                            }
-                        });
-                        
-                        ingredientsList.appendChild(item);
+                        appendIngredientCard(ingredient, ingredientMoistureType(ingredient) === 'wet' ? listWet : listDry);
                     });
                 } else {
                     const message = document.createElement('div');
@@ -919,7 +1066,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                         <span class="premium-empty-icon">${premiumIcon('empty', 'h-5 w-5')}</span>
                         <p>No ingredients available</p>
                     `;
-                    ingredientsList.appendChild(message);
+                    (listDry || listWet).appendChild(message);
                 }
             }
 
@@ -1009,7 +1156,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                         noResultsRow = document.createElement('tr');
                         noResultsRow.className = 'no-results-message';
                         noResultsRow.innerHTML = `
-                            <td colspan="9" class="text-center">
+                            <td colspan="10" class="text-center">
                                 <span class="premium-empty-icon">${premiumIcon('search', 'h-5 w-5')}</span>
                                 <p>No products found matching your search criteria</p>
                             </td>
@@ -1057,14 +1204,17 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                             </td>
                             <td>${product.product_name}</td>
                             <td>${product.category_name}</td>
+                            <td>${product.kitchen_station_label || '—'}</td>
                             <td>₱${parseFloat(product.price).toFixed(2)}</td>
                             <td title="Sum of recipe quantities × current ingredient unit costs">${product.ingredients && product.ingredients.length ? '₱' + parseFloat(product.recipe_cost || 0).toFixed(2) : '—'}</td>
                             <td><span class="vat-badge ${taxBadgeClass}">${taxLabel}</span></td>
                             <td>
                                 <div class="ingredients-list">
-                                    ${product.ingredients ? product.ingredients.map(ing => 
-                                        `<span class="ingredient-tag">${ing.ingredient_name} (${ing.quantity} ${ing.unit})${ing.line_cost != null ? ` · ₱${parseFloat(ing.line_cost).toFixed(2)}` : ''}</span>`
-                                    ).join('') : 'No ingredients'}
+                                    ${product.ingredients ? product.ingredients.map(ing => {
+                                        const m = ingredientMoistureType(ing);
+                                        const pc = m === 'wet' ? 'ingredient-moisture-wet' : 'ingredient-moisture-dry';
+                                        return `<span class="ingredient-tag"><span class="ingredient-moisture-pill ${pc}">${m}</span>${ing.ingredient_name} (${ing.quantity} ${ing.unit})${ing.line_cost != null ? ` · ₱${parseFloat(ing.line_cost).toFixed(2)}` : ''}</span>`;
+                                    }).join('') : 'No ingredients'}
                                 </div>
                             </td>
                             <td><span class="status-badge ${product.status}">${product.status}</span></td>
@@ -1087,7 +1237,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                     const row = document.createElement('tr');
                     row.className = 'no-results-message';
                     row.innerHTML = `
-                        <td colspan="9" class="text-center">
+                        <td colspan="10" class="text-center">
                             <span class="premium-empty-icon">${premiumIcon('empty', 'h-5 w-5')}</span>
                             <p>No products available</p>
                         </td>
@@ -1122,6 +1272,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                             document.getElementById('editProductId').value = product.product_id;
                             document.getElementById('editProductName').value = product.product_name;
                             document.getElementById('editProductCategory').value = product.category_id;
+                            document.getElementById('editProductKitchenStation').value = product.kitchen_station || 'fry';
                             document.getElementById('editProductPrice').value = product.price;
                             document.getElementById('editProductTaxRate').value = parseFloat(product.tax_rate || 12).toFixed(2);
                             document.getElementById('editProductDescription').value = product.description;
@@ -1181,9 +1332,12 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                         const ingredient = data.data;
                         document.getElementById('ingredientId').value = ingredient.ingredient_id;
                         document.getElementById('ingredientName').value = ingredient.ingredient_name;
+                        const fgEl = document.getElementById('ingredientFifoGroup');
+                        if (fgEl) fgEl.value = (ingredient.fifo_group_key || '').trim();
                         document.getElementById('ingredientCategory').value = ingredient.category_id;
                         document.getElementById('ingredientStock').value = ingredient.stock;
                         document.getElementById('ingredientUnit').value = ingredient.unit;
+                        document.getElementById('ingredientMoisture').value = ingredientMoistureType(ingredient);
                         document.getElementById('ingredientStatus').value = ingredient.status;
                         document.getElementById('addIngredientModal').style.display = 'flex';
                         document.querySelector('#addIngredientModal .modal-header h2').textContent = 'Edit Ingredient';
@@ -1219,6 +1373,7 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                                         </div>
                                         <div class="product-view-hero-copy">
                                             <span class="product-view-badge">${ingredient.category_name}</span>
+                                            <span class="ingredient-moisture-pill ${ingredientMoistureType(ingredient) === 'wet' ? 'ingredient-moisture-wet' : 'ingredient-moisture-dry'}" style="margin-left:6px">${ingredientMoistureType(ingredient)}</span>
                                             <h2 class="product-view-title">${ingredient.ingredient_name}</h2>
                                             <div class="product-view-meta">
                                                 <div class="product-view-stat">
@@ -1354,9 +1509,11 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
                         if (data.success) {
                             const product = data.data;
                             const ingredientsMarkup = product.ingredients && product.ingredients.length
-                                ? product.ingredients.map(ing =>
-                                    `<span class="view-ingredient-tag">${ing.ingredient_name} (${ing.quantity} ${ing.unit})${ing.line_cost != null ? ` · ₱${parseFloat(ing.line_cost).toFixed(2)}` : ''}</span>`
-                                ).join('')
+                                ? product.ingredients.map(ing => {
+                                    const m = ingredientMoistureType(ing);
+                                    const pc = m === 'wet' ? 'ingredient-moisture-wet' : 'ingredient-moisture-dry';
+                                    return `<span class="view-ingredient-tag"><span class="ingredient-moisture-pill ${pc}">${m}</span>${ing.ingredient_name} (${ing.quantity} ${ing.unit})${ing.line_cost != null ? ` · ₱${parseFloat(ing.line_cost).toFixed(2)}` : ''}</span>`;
+                                }).join('')
                                 : '<span class="view-empty-note">No ingredients</span>';
                             const rc = parseFloat(product.recipe_cost || 0);
                             const gm = product.gross_margin != null ? parseFloat(product.gross_margin) : (parseFloat(product.price) - rc);
@@ -1564,6 +1721,11 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
             document.getElementById('selectIngredientsBtn').addEventListener('click', function() {
                 isEditingProduct = false;
                 syncIngredientModalSelections(selectedProductIngredients);
+                const searchIng = document.getElementById('searchIngredients');
+                if (searchIng) {
+                    searchIng.value = '';
+                    filterIngredients('');
+                }
                 document.getElementById('selectIngredientsModal').style.display = 'flex';
             });
             
@@ -1593,6 +1755,11 @@ function renderProductsIcon($name, $class = 'h-4 w-4') {
             document.getElementById('editSelectIngredientsBtn').addEventListener('click', function() {
                 isEditingProduct = true;
                 syncIngredientModalSelections(selectedProductIngredients);
+                const searchIng = document.getElementById('searchIngredients');
+                if (searchIng) {
+                    searchIng.value = '';
+                    filterIngredients('');
+                }
                 document.getElementById('selectIngredientsModal').style.display = 'flex';
             });
 

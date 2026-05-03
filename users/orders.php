@@ -94,7 +94,7 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
             box-shadow: 0 14px 40px rgba(0,0,0,0.25);
             backdrop-filter: blur(10px);
         }
-        .zoryn-orders-page .orders-table { width: 100%; border-collapse: collapse; }
+        .zoryn-orders-page .orders-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .zoryn-orders-page .orders-table thead th {
             background: #161616;
             color: #F5D76E;
@@ -106,12 +106,33 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
             text-align: left;
             border-bottom: 1px solid #2E2E2E;
         }
+        .zoryn-orders-page .orders-table thead th:nth-child(1),
+        .zoryn-orders-page .orders-table tbody td:nth-child(1) { width: 13%; }
+        .zoryn-orders-page .orders-table thead th:nth-child(2),
+        .zoryn-orders-page .orders-table tbody td:nth-child(2) { width: 20%; }
+        .zoryn-orders-page .orders-table thead th:nth-child(3),
+        .zoryn-orders-page .orders-table tbody td:nth-child(3) { width: 14%; }
+        .zoryn-orders-page .orders-table thead th:nth-child(4),
+        .zoryn-orders-page .orders-table tbody td:nth-child(4) { width: 10%; }
+        .zoryn-orders-page .orders-table thead th:nth-child(5),
+        .zoryn-orders-page .orders-table tbody td:nth-child(5) { width: 23%; }
+        .zoryn-orders-page .orders-table thead th:nth-child(6),
+        .zoryn-orders-page .orders-table tbody td:nth-child(6) { width: 20%; }
         .zoryn-orders-page .orders-table tbody td {
             padding: 14px 18px;
             border-bottom: 1px solid #2E2E2E;
             color: #D1D1D1;
             font-size: 14px;
             vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            height: 72px;
+        }
+        .zoryn-orders-page .orders-table tbody td:nth-child(5),
+        .zoryn-orders-page .orders-table tbody td:nth-child(6) {
+            overflow: visible;
+            text-overflow: clip;
         }
         .zoryn-orders-page .orders-table tbody tr:hover td { background: rgba(212,175,55,0.05); color: #fff; }
         .zoryn-orders-page .orders-table tbody tr:last-child td { border-bottom: none; }
@@ -120,7 +141,13 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
         }
 
         /* ---------- Buttons / badges / actions ---------- */
-        .zoryn-orders-page .action-buttons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .zoryn-orders-page .action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+        }
         .zoryn-orders-page .action-btn {
             padding: 7px 13px; border-radius: 9px; font-size: 12px; cursor: pointer; border: none;
             font-weight: 600; transition: all 0.2s; font-family: 'Poppins', sans-serif;
@@ -175,8 +202,38 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
         }
         .zoryn-orders-page .payment-status.pending  { background: rgba(253,203,110,0.15); color: #FDCB6E; }
         .zoryn-orders-page .payment-status.verified { background: rgba(0,184,148,0.15);   color: #78ebca; }
-        .zoryn-orders-page .payment-status.unpaid   { background: rgba(220,53,69,0.15);   color: #ff8b92; }
+        .zoryn-orders-page .payment-status.unpaid      { background: rgba(220,53,69,0.15);   color: #ff8b92; }
+        .zoryn-orders-page .payment-status.charge_corp { background: rgba(162,155,254,0.16); color: #c5bdff; }
         .zoryn-orders-page .payment-status i { font-size: 10px; }
+        .zoryn-orders-page .payment-select:disabled,
+        .zoryn-orders-page .filter-select:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .zoryn-orders-page .payment-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+            min-width: 0;
+            width: 100%;
+        }
+        .zoryn-orders-page .payment-control-select {
+            width: calc(50% - 3px);
+            min-width: 0;
+            padding: 7px 10px;
+            border: 1px solid #2E2E2E;
+            border-radius: 9px;
+            background: #1F1F1F;
+            color: #E5E5E5;
+            font-size: 12px;
+            font-family: 'Poppins', sans-serif;
+            outline: none;
+        }
+        .zoryn-orders-page .payment-control-select:focus {
+            border-color: #D4AF37;
+            box-shadow: 0 0 0 3px rgba(212,175,55,0.18);
+        }
 
         /* Mark-as-paid button + verify + image proof */
         .zoryn-orders-page .mark-paid-btn {
@@ -459,12 +516,13 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                 <h1>Orders Management</h1>
                 <div class="orders-filter">
                     <div class="filter-group">
-                        <input type="date" id="orderDateFilter" placeholder="Filter by date">
+                        <input type="date" id="orderDateFilter" value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>" placeholder="Filter by date" title="Showing today by default; pick another date to view that day">
                         <select id="paymentStatusFilter" class="filter-select">
                             <option value="">All Payment Status</option>
                             <option value="unpaid">Unpaid</option>
                             <option value="pending">Pending</option>
                             <option value="verified">Paid</option>
+                            <option value="charge_corp">Charge to corp</option>
                         </select>
                         <select id="orderStatusFilter" class="filter-select">
                             <option value="">All Order Status</option>
@@ -506,6 +564,55 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
     </div>
     
     <script>
+    function todayLocalYYYYMMDD() {
+        const d = new Date();
+        return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+    }
+    function money(n) {
+        return parseFloat(n || 0).toFixed(2);
+    }
+    function computeVatBreakdown(items) {
+        let vatableSales = 0, vatAmount = 0, vatExemptSales = 0, total = 0;
+        (items || []).forEach(i => {
+            const lineTotal = parseFloat(i.price || 0) * parseInt(i.quantity || 0, 10);
+            const taxRate = parseFloat(i.tax_rate || 12);
+            total += lineTotal;
+            if (taxRate > 0) {
+                const vatable = lineTotal / (1 + taxRate / 100);
+                vatableSales += vatable;
+                vatAmount += lineTotal - vatable;
+            } else {
+                vatExemptSales += lineTotal;
+            }
+        });
+        return { vatableSales, vatAmount, vatExemptSales, total };
+    }
+    function printOrderReceipt(order) {
+        if (!order || !Array.isArray(order.items) || order.items.length === 0) {
+            Swal.fire({ title: 'No items to print', text: 'This order has no printable line items.', icon: 'warning', confirmButtonColor: '#D4AF37' });
+            return;
+        }
+        const createdAt = order.created_at ? new Date(order.created_at) : new Date();
+        const dateStr = createdAt.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+        const timeStr = createdAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+        let itemsHtml = '';
+        order.items.forEach(i => {
+            const qty = parseInt(i.quantity || 0, 10);
+            const price = parseFloat(i.price || 0);
+            const subtotal = price * qty;
+            itemsHtml += `<tr><td style="text-align:left">${i.product_name}</td><td style="text-align:center">${qty}</td><td style="text-align:right">₱${money(price)}</td><td style="text-align:right">₱${money(subtotal)}</td></tr>`;
+        });
+        const vat = computeVatBreakdown(order.items);
+        const vatHtml = `${vat.vatableSales > 0 ? `<div class="receipt-vat-row"><span>VATable Sales</span><span>₱${money(vat.vatableSales)}</span></div><div class="receipt-vat-row"><span>VAT (12%)</span><span>₱${money(vat.vatAmount)}</span></div>` : ''}${vat.vatExemptSales > 0 ? `<div class="receipt-vat-row"><span>VAT-Exempt Sales</span><span>₱${money(vat.vatExemptSales)}</span></div>` : ''}`;
+        const logoUrl = new URL('../assets/zoryn/zoryn_logo.jpg', window.location.href).href;
+        const orderTypeLabel = (order.order_type || 'walk-in').toString().replace(/\b\w/g, c => c.toUpperCase());
+        const receiptHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt #${order.order_id}</title><style>@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Poppins',sans-serif;background:#fff;color:#1a1a1a}.receipt{width:320px;margin:0 auto;padding:24px 20px}.receipt-logo{display:block;width:80px;height:80px;object-fit:cover;border-radius:50%;margin:0 auto 8px;border:2px solid #D4AF37}.receipt-brand{text-align:center;font-size:16px;font-weight:700;letter-spacing:1px;margin-bottom:2px}.receipt-tagline{text-align:center;font-size:10px;color:#888;margin-bottom:14px;letter-spacing:.5px}.receipt-divider{border:none;border-top:1px dashed #ccc;margin:10px 0}.receipt-meta{font-size:11px;color:#555;margin-bottom:3px;display:flex;justify-content:space-between}.receipt-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:11px}.receipt-table th{text-align:left;font-weight:600;font-size:10px;text-transform:uppercase;color:#888;letter-spacing:.5px;padding:4px 0;border-bottom:1px solid #ddd}.receipt-table td{padding:5px 0;vertical-align:top}.receipt-vat-row{display:flex;justify-content:space-between;font-size:10px;color:#666;padding:2px 0}.receipt-total{display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding:8px 0;border-top:2px solid #1a1a1a;margin-top:4px}.receipt-footer{text-align:center;margin-top:16px;font-size:10px;color:#999;line-height:1.6}.receipt-footer strong{color:#D4AF37;font-size:11px}@media print{@page{size:80mm auto;margin:0}.receipt{width:100%;padding:10px 8px}.no-print{display:none!important}}</style></head><body><div style="text-align:center;padding:16px 0" class="no-print"><button onclick="window.print()" style="padding:10px 28px;background:#D4AF37;color:#0D0D0D;border:none;border-radius:8px;font-weight:600;font-family:Poppins,sans-serif;cursor:pointer;font-size:14px;margin-right:8px"><i class="fas fa-print" style="margin-right:6px"></i>Print</button><button onclick="window.close()" style="padding:10px 28px;background:#2A2A2A;color:#B0B0B0;border:1px solid #ddd;border-radius:8px;font-weight:500;font-family:Poppins,sans-serif;cursor:pointer;font-size:14px">Close</button></div><div class="receipt"><img src="${logoUrl}" class="receipt-logo" alt="Zoryn" onerror="this.style.display='none'"><div class="receipt-brand">ZORYN RESTAURANT</div><div class="receipt-tagline">Taste the Excellence</div><hr class="receipt-divider"><div class="receipt-meta"><span>Date: ${dateStr}</span><span>${timeStr}</span></div><div class="receipt-meta"><span>Order #${order.order_id}</span></div><div class="receipt-meta"><span>Customer: ${order.customer_name || 'Guest'}</span></div><div class="receipt-meta"><span>Type: ${orderTypeLabel}</span>${order.table_number ? `<span>Table: ${order.table_number}</span>` : ''}</div><hr class="receipt-divider"><table class="receipt-table"><thead><tr><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsHtml}</tbody></table><hr class="receipt-divider">${vatHtml}<div class="receipt-total"><span>TOTAL</span><span>₱${money(vat.total)}</span></div><hr class="receipt-divider"><div class="receipt-footer"><strong>Thank you for dining with us!</strong><br>Please come again.<br>&mdash; Zoryn Restaurant &mdash;</div></div><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></body></html>`;
+        const receiptWindow = window.open('', '_blank', 'width=420,height=760');
+        if (!receiptWindow) return;
+        receiptWindow.document.write(receiptHtml);
+        receiptWindow.document.close();
+    }
+
     // Move these functions outside of DOMContentLoaded
     window.verifyPayment = function(orderId, buttonElement) {
         Swal.fire({
@@ -736,10 +843,13 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
         });
     };
 
+    const PAYMENT_STATUS_LABELS = { paid: 'Paid', unpaid: 'Unpaid', pending: 'Pending', charge_corp: 'Charge to corp', verified: 'Paid' };
+
     window.updatePaymentStatus = function(orderId, paymentStatus) {
+        const statusLabel = PAYMENT_STATUS_LABELS[paymentStatus] || paymentStatus;
         Swal.fire({
             title: 'Update payment status?',
-            text: `Set payment status to "${paymentStatus}"?`,
+            text: `Set payment status to "${statusLabel}"?`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#D4AF37',
@@ -960,7 +1070,62 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
         return `<span class="type-badge ${m.cls}"><i class="fas ${m.icon}"></i>${m.label}${tableTag}</span>`;
     }
 
+    let PAYMENT_METHODS = [];
+    const DEFAULT_PAYMENT_METHODS = [
+        { method_code: 'cash', method_name: 'Cash', requires_proof: 0 },
+        { method_code: 'gcash', method_name: 'GCash', requires_proof: 1 },
+        { method_code: 'maya', method_name: 'Maya', requires_proof: 1 },
+        { method_code: 'card', method_name: 'Card', requires_proof: 0 },
+        { method_code: 'bank_transfer', method_name: 'Bank Transfer', requires_proof: 1 }
+    ];
+
+    function normalizePaymentMethodCode(code) {
+        const raw = String(code || '').trim().toLowerCase();
+        if (!raw) return 'cash';
+        if (raw === 'online') return 'gcash'; // Legacy compatibility
+        return raw;
+    }
+
+    function paymentMethodOptionsHtml(selectedCode) {
+        const normalizedSelected = normalizePaymentMethodCode(selectedCode);
+        const list = PAYMENT_METHODS.length ? PAYMENT_METHODS : DEFAULT_PAYMENT_METHODS;
+        const options = list.map(method => {
+            const code = String(method.method_code || '').trim().toLowerCase();
+            const name = String(method.method_name || method.method_code || 'Unknown').trim();
+            const selected = code === normalizedSelected ? 'selected' : '';
+            return `<option value="${code}" ${selected}>${name}</option>`;
+        });
+
+        const exists = list.some(method => String(method.method_code || '').trim().toLowerCase() === normalizedSelected);
+        if (!exists && normalizedSelected) {
+            const fallbackLabel = normalizedSelected.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            options.unshift(`<option value="${normalizedSelected}" selected>${fallbackLabel}</option>`);
+        }
+
+        return options.join('');
+    }
+
+    function loadPaymentMethods() {
+        return fetch('../backend/payment_functions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=get_payment_methods'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.methods) && data.methods.length > 0) {
+                PAYMENT_METHODS = data.methods;
+            } else {
+                PAYMENT_METHODS = DEFAULT_PAYMENT_METHODS;
+            }
+        })
+        .catch(() => {
+            PAYMENT_METHODS = DEFAULT_PAYMENT_METHODS;
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        loadPaymentMethods();
         // Load initial data
         loadOrders();
         
@@ -992,7 +1157,12 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
         
         // Update loadOrders function to handle all filters
         function loadOrders() {
-            const dateFilter = document.getElementById('orderDateFilter').value;
+            const dateEl = document.getElementById('orderDateFilter');
+            let dateFilter = (dateEl.value || '').trim();
+            if (!dateFilter) {
+                dateFilter = todayLocalYYYYMMDD();
+                dateEl.value = dateFilter;
+            }
             const paymentStatus = document.getElementById('paymentStatusFilter').value;
             const orderStatus = document.getElementById('orderStatusFilter').value;
             const orderType = document.getElementById('orderTypeFilter').value;
@@ -1019,14 +1189,23 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                     tbody.innerHTML = '';
                     
                     data.orders.forEach(order => {
-                        const normalizedPaymentStatus = ((order.payment_status || '').toLowerCase() === 'verified' || (order.payment_status || '').toLowerCase() === 'paid')
+                        const isCancelledOrder = (order.order_status || '').toLowerCase() === 'cancelled';
+                        const ps = (order.payment_status || '').toLowerCase();
+                        const normalizedPaymentStatus = (ps === 'verified' || ps === 'paid')
                             ? 'paid'
-                            : 'unpaid';
+                            : (ps === 'charge_corp' ? 'charge_corp' : 'unpaid');
+                        const normalizedPaymentType = normalizePaymentMethodCode(order.payment_type);
                         const paymentStatusDropdown = `
-                            <select class="filter-select" onchange="updatePaymentStatus(${order.order_id}, this.value)">
-                                <option value="paid" ${normalizedPaymentStatus === 'paid' ? 'selected' : ''}>Paid</option>
-                                <option value="unpaid" ${normalizedPaymentStatus === 'unpaid' ? 'selected' : ''}>Unpaid</option>
-                            </select>
+                            <div class="payment-controls">
+                                <select class="payment-control-select" onchange="updatePaymentMethod(${order.order_id}, this.value)" ${isCancelledOrder ? 'disabled' : ''} title="${isCancelledOrder ? 'Payment method is locked for cancelled orders' : 'Change payment method'}">
+                                    ${paymentMethodOptionsHtml(normalizedPaymentType)}
+                                </select>
+                                <select class="payment-control-select" onchange="updatePaymentStatus(${order.order_id}, this.value)" ${isCancelledOrder ? 'disabled' : ''} title="${isCancelledOrder ? 'Payment status is locked for cancelled orders' : 'Change payment status'}">
+                                    <option value="paid" ${normalizedPaymentStatus === 'paid' ? 'selected' : ''}>Paid</option>
+                                    <option value="unpaid" ${normalizedPaymentStatus === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+                                    <option value="charge_corp" ${normalizedPaymentStatus === 'charge_corp' ? 'selected' : ''}>Charge to corp</option>
+                                </select>
+                            </div>
                         `;
 
                         const row = document.createElement('tr');
@@ -1149,6 +1328,20 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                                         </div>
                                     </div>
                                     <div class="product-info-card">
+                                        <div class="product-info-icon"><i class="fas fa-concierge-bell"></i></div>
+                                        <div class="product-info-content">
+                                            <div class="product-info-label">Waiter</div>
+                                            <div class="product-info-value">${order.waiter_name || 'Not recorded'}</div>
+                                        </div>
+                                    </div>
+                                    <div class="product-info-card">
+                                        <div class="product-info-icon"><i class="fas fa-cash-register"></i></div>
+                                        <div class="product-info-content">
+                                            <div class="product-info-label">Cashier</div>
+                                            <div class="product-info-value">${order.cashier_name || 'Not recorded'}</div>
+                                        </div>
+                                    </div>
+                                    <div class="product-info-card">
                                         <div class="product-info-icon"><i class="fas ${orderTypeMeta(order.order_type).icon}"></i></div>
                                         <div class="product-info-content">
                                             <div class="product-info-label">Order Type</div>
@@ -1180,6 +1373,15 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                                         <button type="button" class="mark-paid-btn" onclick="addAdditionalItem(${order.order_id})">
                                             <i class="fas fa-plus"></i> Add Item
                                         </button>
+                                        <button type="button" class="mark-paid-btn" id="print-receipt-btn" style="margin-left:8px;">
+                                            <i class="fas fa-print"></i> Print Receipt
+                                        </button>
+                                    </div>` : ''}
+                                    ${!canEditOrderLines(order.order_status) ? `
+                                    <div style="margin-top:12px;">
+                                        <button type="button" class="mark-paid-btn" id="print-receipt-btn">
+                                            <i class="fas fa-print"></i> Print Receipt
+                                        </button>
                                     </div>` : ''}
                                     <div class="order-total-bar">
                                         <div class="order-total-label">Total Amount</div>
@@ -1203,6 +1405,12 @@ if (($_SESSION['role'] ?? '') !== 'cashier') {
                             confirmButton: 'swal-modern-product-confirm',
                             denyButton: 'swal-modern-product-deny',
                             closeButton: 'swal-modern-product-close'
+                        },
+                        didOpen: () => {
+                            const printBtn = document.getElementById('print-receipt-btn');
+                            if (printBtn) {
+                                printBtn.addEventListener('click', () => printOrderReceipt(order));
+                            }
                         }
                     }).then((result) => {
                         if (result.isDenied) {

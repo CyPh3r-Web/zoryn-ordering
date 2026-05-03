@@ -535,7 +535,12 @@
                                  data-100="${Number(shift.count_100 || 0)}"
                                  data-50="${Number(shift.count_50 || 0)}"
                                  data-20="${Number(shift.count_20 || 0)}"
-                                 data-total="${Number(shift.total_cash || 0)}">
+                                 data-10="${Number(shift.count_10 || 0)}"
+                                 data-5="${Number(shift.count_5 || 0)}"
+                                 data-1="${Number(shift.count_1 || 0)}"
+                                 data-total="${Number(shift.total_cash || 0)}"
+                                 data-expected="${Number(shift.expected_cash || 0)}"
+                                 data-variance="${Number(shift.cash_variance || 0)}">
                                  <i class="fas fa-eye"></i> View
                                </button>`
                             : '<span style="color:#999;">-</span>';
@@ -562,7 +567,20 @@
                             const c100 = Number(this.getAttribute('data-100') || 0);
                             const c50 = Number(this.getAttribute('data-50') || 0);
                             const c20 = Number(this.getAttribute('data-20') || 0);
+                            const c10 = Number(this.getAttribute('data-10') || 0);
+                            const c5 = Number(this.getAttribute('data-5') || 0);
+                            const c1 = Number(this.getAttribute('data-1') || 0);
                             const total = Number(this.getAttribute('data-total') || 0);
+                            const expected = Number(this.getAttribute('data-expected') || 0);
+                            const variance = Number(this.getAttribute('data-variance') || 0);
+                            let varianceRow = '';
+                            if (variance < -0.005) {
+                                varianceRow = `<div class="zoryn-cash-row"><span>Cashier short (vs shift cash sales)</span><strong style="color:#ff8a80;">P ${Math.abs(variance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>`;
+                            } else if (variance > 0.005) {
+                                varianceRow = `<div class="zoryn-cash-row"><span>Over vs shift cash sales</span><strong>P ${variance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>`;
+                            } else {
+                                varianceRow = `<div class="zoryn-cash-row"><span>Short / over</span><strong>Balanced (P 0.00)</strong></div>`;
+                            }
 
                             Swal.fire({
                                 title: 'Cash Count Breakdown',
@@ -582,8 +600,13 @@
                                         <div class="zoryn-cash-row"><span>P 100 bills</span><strong>${c100}</strong></div>
                                         <div class="zoryn-cash-row"><span>P 50 bills</span><strong>${c50}</strong></div>
                                         <div class="zoryn-cash-row"><span>P 20 bills</span><strong>${c20}</strong></div>
+                                        <div class="zoryn-cash-row"><span>P 10 coins</span><strong>${c10}</strong></div>
+                                        <div class="zoryn-cash-row"><span>P 5 coins</span><strong>${c5}</strong></div>
+                                        <div class="zoryn-cash-row"><span>P 1 coins</span><strong>${c1}</strong></div>
+                                        <div class="zoryn-cash-row"><span>Shift cash sales (reference)</span><strong>P ${expected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                                        ${varianceRow}
                                         <div class="zoryn-cash-total">
-                                            <span>Total Cash</span>
+                                            <span>Counted Total</span>
                                             <strong>P ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                                         </div>
                                     </div>

@@ -149,6 +149,18 @@ class OrderManager {
         }
     }
 
+    /** Persist discount settings on the session cart (stored in session_orders JSON). */
+    public function updateSessionDiscount($enabled, $percent) {
+        $current_order = $this->getCurrentOrder();
+        if (!isset($current_order['items'])) {
+            $current_order['items'] = array();
+        }
+        $current_order['discount_enabled'] = $enabled ? 1 : 0;
+        $current_order['discount_percent'] = max(0.0, min(100.0, round((float) $percent, 2)));
+        $this->saveCurrentOrder($current_order);
+        return $current_order;
+    }
+
     // Save current session order
     private function saveCurrentOrder($order_data) {
         // Clear any existing order data for this session
@@ -217,9 +229,38 @@ class OrderManager {
                     $subtotal += $line; // VAT-exempt
                 }
             }
-            $total_amount = round($subtotal + $tax_amount, 2);
+            $gross_total = round($subtotal + $tax_amount, 2);
             $subtotal   = round($subtotal, 2);
             $tax_amount = round($tax_amount, 2);
+
+            $disc_enabled = !empty($current_order['discount_enabled']);
+            $disc_pct = isset($current_order['discount_percent']) ? (float) $current_order['discount_percent'] : 0.0;
+            if ($disc_pct < 0) {
+                $disc_pct = 0;
+            }
+            if ($disc_pct > 100) {
+                $disc_pct = 100;
+            }
+
+            $discount_amount = 0.0;
+            $db_discount_enabled = 0;
+            $db_discount_percent = 0.0;
+
+            if ($disc_enabled && $disc_pct > 0 && $gross_total > 0) {
+                $discount_amount = round($gross_total * ($disc_pct / 100), 2);
+                if ($discount_amount > $gross_total) {
+                    $discount_amount = $gross_total;
+                }
+                $db_discount_enabled = 1;
+                $db_discount_percent = round($disc_pct, 2);
+            }
+
+            $total_amount = round($gross_total - $discount_amount, 2);
+            if ($gross_total > 0 && $discount_amount > 0) {
+                $ratio = $total_amount / $gross_total;
+                $subtotal = round($subtotal * $ratio, 2);
+                $tax_amount = round($total_amount - $subtotal, 2);
+            }
 
             // Handle payment proof upload if it's an online payment
             $proof_of_payment_path = null;
@@ -246,17 +287,24 @@ class OrderManager {
 
             // Set payment status based on payment type
             $payment_status = ($payment_type === 'cash') ? 'unpaid' : 'pending';
+            $waiter_id = null;
 
-            // Create order (with tax + table-number metadata)
+            // The waiter is the authenticated waiter account that encoded the order.
+            if (!empty($_SESSION['user_id']) && strtolower((string) ($_SESSION['role'] ?? '')) === 'waiter') {
+                $waiter_id = (int) $_SESSION['user_id'];
+            }
+
+            // Create order (with tax + table-number metadata + optional discount)
             $stmt = $this->conn->prepare("
                 INSERT INTO orders (
                     customer_name, order_type, user_id, order_status,
                     total_amount, subtotal, tax_amount,
-                    payment_type, payment_status, proof_of_payment, table_number
-                ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
+                    payment_type, payment_status, proof_of_payment, table_number, waiter_id,
+                    discount_enabled, discount_percent, discount_amount
+                ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->bind_param(
-                "ssidddssss",
+                "ssidddssssiidd",
                 $customer_name,
                 $order_type,
                 $user_id,
@@ -266,7 +314,11 @@ class OrderManager {
                 $payment_type,
                 $payment_status,
                 $proof_of_payment_path,
-                $table_number
+                $table_number,
+                $waiter_id,
+                $db_discount_enabled,
+                $db_discount_percent,
+                $discount_amount
             );
             $stmt->execute();
             $order_id = $this->conn->insert_id;
@@ -633,6 +685,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(array('success' => true));
                 break;
 
+            case 'update_discount':
+                $de = isset($_POST['discount_enabled']) && ($_POST['discount_enabled'] === '1' || $_POST['discount_enabled'] === 'true');
+                $dp = isset($_POST['discount_percent']) ? (float) $_POST['discount_percent'] : 0.0;
+                $result = $orderManager->updateSessionDiscount($de, $dp);
+                echo json_encode($result);
+                break;
+
             case 'create_order':
                 $customer_name = $_POST['customer_name'] ?? '';
                 $order_type = $_POST['order_type'] ?? 'account-order';
@@ -644,6 +703,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 try {
+                    $de = isset($_POST['discount_enabled']) && $_POST['discount_enabled'] === '1';
+                    $dp = isset($_POST['discount_percent']) ? (float) $_POST['discount_percent'] : 0.0;
+                    $orderManager->updateSessionDiscount($de, $dp);
                     $result = $orderManager->createFinalOrder($customer_name, $order_type, $user_id, 'cash', null, $table_number);
                     sendJsonResponse($result);
                 } catch (Exception $e) {
@@ -769,6 +831,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 try {
+                    $de = isset($_POST['discount_enabled']) && $_POST['discount_enabled'] === '1';
+                    $dp = isset($_POST['discount_percent']) ? (float) $_POST['discount_percent'] : 0.0;
+                    $orderManager->updateSessionDiscount($de, $dp);
                     $result = $orderManager->createFinalOrder(
                         $customer_name,
                         $order_type,

@@ -309,6 +309,7 @@ if (session_status() === PHP_SESSION_NONE) {
                             <th>Order ID</th>
                             <th>Date</th>
                             <th>Type</th>
+                            <th>Payment Type</th>
                             <th>Status</th>
                             <th>Total</th>
                             <th>Actions</th>
@@ -357,10 +358,16 @@ if (session_status() === PHP_SESSION_NONE) {
                                              order.order_status === 'preparing' ? 'fa-utensils' : 
                                              'fa-check-circle';
                             
+                            const paymentTypeRaw = (order.payment_type || '').trim();
+                            const paymentTypeLabel = paymentTypeRaw
+                                ? paymentTypeRaw.charAt(0).toUpperCase() + paymentTypeRaw.slice(1)
+                                : 'Cash';
+
                             row.innerHTML = `
                                 <td>#${order.order_id}</td>
                                 <td>${new Date(order.created_at).toLocaleString()}</td>
                                 <td>${order.order_type}</td>
+                                <td>${paymentTypeLabel}</td>
                                 <td>
                                     <span class="status-badge ${statusClass}">
                                         <i class="fas ${statusIcon}"></i>

@@ -1,6 +1,7 @@
 <?php
 require_once 'dbconn.php';
 require_once 'inventory_manager.php';
+require_once 'fifo_stock_helper.php';
 
 class InventoryUpdater {
     private $conn;
@@ -166,26 +167,34 @@ class InventoryUpdater {
                     error_log("Updating stock for order {$order_id} - Product {$order_item['product_id']} - Ingredient {$ingredient['ingredient_name']}:
                         Current stock: {$ingredient['stock']}{$ingredient['stock_unit']}
                         Quantity to deduct: {$total_quantity}{$ingredient['unit']} (converted: {$converted_quantity}{$ingredient['stock_unit']})");
-                    
-                    // Update the ingredient stock
-                    $update_stmt = $this->conn->prepare("
-                        UPDATE ingredients 
-                        SET stock = stock - ? 
-                        WHERE ingredient_id = ?
-                    ");
-                    $update_stmt->bind_param("di", $converted_quantity, $ingredient['ingredient_id']);
-                    $update_stmt->execute();
 
-                    // Audit trail — stock_out movement tied to the originating order
-                    $log_stmt = $this->conn->prepare("
-                        INSERT INTO inventory_movements
-                            (ingredient_id, movement_type, quantity, unit_cost,
-                             reference_type, reference_id, notes, movement_date)
-                        VALUES (?, 'sale', ?, 0, 'order', ?, ?, CURDATE())
-                    ");
-                    $saleNote = "Sale deduction for order #{$order_id}";
-                    $log_stmt->bind_param("idis", $ingredient['ingredient_id'], $converted_quantity, $order_id, $saleNote);
-                    $log_stmt->execute();
+                    if (fifo_lots_table_exists($this->conn)) {
+                        fifo_deduct_for_sale(
+                            $this->conn,
+                            (int) $ingredient['ingredient_id'],
+                            (float) $converted_quantity,
+                            (int) $order_id,
+                            date('Y-m-d')
+                        );
+                    } else {
+                        $update_stmt = $this->conn->prepare("
+                            UPDATE ingredients 
+                            SET stock = stock - ? 
+                            WHERE ingredient_id = ?
+                        ");
+                        $update_stmt->bind_param("di", $converted_quantity, $ingredient['ingredient_id']);
+                        $update_stmt->execute();
+
+                        $log_stmt = $this->conn->prepare("
+                            INSERT INTO inventory_movements
+                                (ingredient_id, movement_type, quantity, unit_cost,
+                                 reference_type, reference_id, notes, movement_date)
+                            VALUES (?, 'sale', ?, 0, 'order', ?, ?, CURDATE())
+                        ");
+                        $saleNote = "Sale deduction for order #{$order_id}";
+                        $log_stmt->bind_param("idis", $ingredient['ingredient_id'], $converted_quantity, $order_id, $saleNote);
+                        $log_stmt->execute();
+                    }
 
                     // Verify the update
                     $verify_stmt = $this->conn->prepare("
@@ -243,23 +252,33 @@ class InventoryUpdater {
                     $total_quantity = $qty * $ingredient['quantity'];
                     $converted_quantity = $this->convertQuantity($total_quantity, $ingredient['unit'], $ingredient['stock_unit']);
 
-                    $update_stmt = $this->conn->prepare("
-                        UPDATE ingredients
-                        SET stock = stock + ?
-                        WHERE ingredient_id = ?
-                    ");
-                    $update_stmt->bind_param("di", $converted_quantity, $ingredient['ingredient_id']);
-                    $update_stmt->execute();
+                    if (fifo_lots_table_exists($this->conn)) {
+                        fifo_return_from_sale(
+                            $this->conn,
+                            (int) $ingredient['ingredient_id'],
+                            (float) $converted_quantity,
+                            (int) $order_id,
+                            date('Y-m-d')
+                        );
+                    } else {
+                        $update_stmt = $this->conn->prepare("
+                            UPDATE ingredients
+                            SET stock = stock + ?
+                            WHERE ingredient_id = ?
+                        ");
+                        $update_stmt->bind_param("di", $converted_quantity, $ingredient['ingredient_id']);
+                        $update_stmt->execute();
 
-                    $log_stmt = $this->conn->prepare("
-                        INSERT INTO inventory_movements
-                            (ingredient_id, movement_type, quantity, unit_cost,
-                             reference_type, reference_id, notes, movement_date)
-                        VALUES (?, 'return_in', ?, 0, 'order', ?, ?, CURDATE())
-                    ");
-                    $note = "{$notesPrefix} for order #{$order_id}";
-                    $log_stmt->bind_param("idis", $ingredient['ingredient_id'], $converted_quantity, $order_id, $note);
-                    $log_stmt->execute();
+                        $log_stmt = $this->conn->prepare("
+                            INSERT INTO inventory_movements
+                                (ingredient_id, movement_type, quantity, unit_cost,
+                                 reference_type, reference_id, notes, movement_date)
+                                VALUES (?, 'return_in', ?, 0, 'order', ?, ?, CURDATE())
+                        ");
+                        $note = "{$notesPrefix} for order #{$order_id}";
+                        $log_stmt->bind_param("idis", $ingredient['ingredient_id'], $converted_quantity, $order_id, $note);
+                        $log_stmt->execute();
+                    }
                 }
             }
 
@@ -293,12 +312,15 @@ class InventoryUpdater {
                     
                     // Convert quantity to match stock unit
                     $converted_quantity = $this->convertQuantity($total_quantity, $ingredient['unit'], $ingredient['stock_unit']);
-                    
-                    // Check if there's enough stock
-                    if ($ingredient['stock'] < $converted_quantity) {
+
+                    $available = fifo_lots_table_exists($this->conn)
+                        ? fifo_cluster_available($this->conn, (int) $ingredient['ingredient_id'])
+                        : (float) $ingredient['stock'];
+                    if ($available + 1e-6 < $converted_quantity) {
                         return array(
                             'success' => false,
-                            'message' => "Not enough stock for {$ingredient['ingredient_name']}. Required: {$total_quantity}{$ingredient['unit']} (converted: {$converted_quantity}{$ingredient['stock_unit']}), Available: {$ingredient['stock']}{$ingredient['stock_unit']}"
+                            'message' => 'Not enough stock for ' . $ingredient['ingredient_name']
+                                . ". Required: {$total_quantity}{$ingredient['unit']} (converted: {$converted_quantity}{$ingredient['stock_unit']}), Available: {$available}{$ingredient['stock_unit']}"
                         );
                     }
                 }
@@ -337,13 +359,16 @@ class InventoryUpdater {
                 // Convert quantity to match the ingredient's stock unit
                 $converted_quantity = $this->convertQuantity($quantity, $unit, $ingredient['unit']);
 
-                // Update the ingredient stock
-                $update_stmt = $this->conn->prepare("UPDATE ingredients SET stock = stock - ?, updated_at = NOW() WHERE ingredient_id = ?");
-                $update_stmt->bind_param("di", $converted_quantity, $ingredient_id);
-                $update_stmt->execute();
+                if (fifo_lots_table_exists($this->conn)) {
+                    fifo_manual_stock_out($this->conn, (int) $ingredient_id, (float) $converted_quantity);
+                } else {
+                    $update_stmt = $this->conn->prepare("UPDATE ingredients SET stock = stock - ?, updated_at = NOW() WHERE ingredient_id = ?");
+                    $update_stmt->bind_param("di", $converted_quantity, $ingredient_id);
+                    $update_stmt->execute();
 
-                if ($update_stmt->affected_rows === 0) {
-                    throw new Exception("Failed to update stock for ingredient ID: $ingredient_id");
+                    if ($update_stmt->affected_rows === 0) {
+                        throw new Exception("Failed to update stock for ingredient ID: $ingredient_id");
+                    }
                 }
             }
 

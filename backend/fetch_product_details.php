@@ -1,6 +1,7 @@
 <?php
 require_once 'dbconn.php';
 require_once 'recipe_cost_helper.php';
+require_once 'kitchen_stations_helper.php';
 
 header('Content-Type: application/json');
 
@@ -13,6 +14,7 @@ if (isset($_GET['product_id'])) {
                     p.product_id,
                     p.product_name,
                     p.category_id,
+                    p.kitchen_station,
                     p.price,
                     p.tax_rate,
                     p.description,
@@ -31,6 +33,9 @@ if (isset($_GET['product_id'])) {
         
         if ($result->num_rows > 0) {
             $product = $result->fetch_assoc();
+            $ks = zoryn_normalize_kitchen_station($product['kitchen_station'] ?? 'fry');
+            $product['kitchen_station'] = $ks;
+            $product['kitchen_station_label'] = zoryn_kitchen_station_label($ks);
             
             // Fetch ingredients for the product
             $ingredientsSql = "SELECT 
@@ -39,6 +44,7 @@ if (isset($_GET['product_id'])) {
                                 pi.quantity,
                                 pi.unit,
                                 i.unit AS stock_unit,
+                                COALESCE(i.moisture_type, 'dry') AS moisture_type,
                                 i.default_unit_cost
                             FROM product_ingredients pi
                             JOIN ingredients i ON pi.ingredient_id = i.ingredient_id

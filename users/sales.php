@@ -12,7 +12,10 @@ $activeShift = null;
 if (!empty($shiftAccess['active_shift_id'])) {
     $activeShiftId = (int) $shiftAccess['active_shift_id'];
     $stmt = $conn->prepare("
-        SELECT s.shift_id, s.shift_date, s.start_time, s.end_time, s.status, c.cash_count_id, c.total_cash, c.recorded_at
+        SELECT s.shift_id, s.shift_date, s.start_time, s.end_time, s.status,
+            c.cash_count_id, c.total_cash, c.recorded_at,
+            COALESCE(c.expected_cash, 0) AS expected_cash,
+            COALESCE(c.cash_variance, 0) AS cash_variance
         FROM cashier_shifts s
         LEFT JOIN cashier_shift_cash_counts c ON c.shift_id = s.shift_id
         WHERE s.shift_id = ?
@@ -224,9 +227,23 @@ if (!empty($shiftAccess['active_shift_id'])) {
                     <div style="font-size:13px;color:#ddd;">
                         Shift: <?php echo htmlspecialchars($activeShift['shift_date']); ?> <?php echo htmlspecialchars($activeShift['start_time']); ?> - <?php echo htmlspecialchars($activeShift['end_time']); ?>
                     </div>
-                    <div id="cashCountStatus" style="font-size:12px;color:#bbb;">
-                        <?php if (!empty($activeShift['cash_count_id'])): ?>
-                            Cash count already submitted: P <?php echo number_format((float) ($activeShift['total_cash'] ?? 0), 2); ?>
+                    <div id="cashCountStatus" style="font-size:12px;color:#bbb;line-height:1.5;">
+                        <?php if (!empty($activeShift['cash_count_id'])):
+                            $submittedTotal = (float) ($activeShift['total_cash'] ?? 0);
+                            $submittedExpected = (float) ($activeShift['expected_cash'] ?? 0);
+                            $variance = round((float) ($activeShift['cash_variance'] ?? 0), 2);
+                            ?>
+                            Cash count submitted: P <?php echo number_format($submittedTotal, 2); ?>.
+                            <span style="display:block;margin-top:4px;color:#dcdcdc;">
+                                <?php if ($variance < -0.005): ?>
+                                    <span style="color:#ff8a80;">Cashier short: P <?php echo number_format(abs($variance), 2); ?></span>
+                                    <span style="display:block;color:#999;font-size:11px;">Counted total is lower than verified shift cash sales (P <?php echo number_format($submittedExpected, 2); ?>); starting float / misc. cash is not included.</span>
+                                <?php elseif ($variance > 0.005): ?>
+                                    Over: P <?php echo number_format($variance, 2); ?> vs shift cash sales (P <?php echo number_format($submittedExpected, 2); ?>).
+                                <?php else: ?>
+                                    Count matches shift cash sales (P <?php echo number_format($submittedExpected, 2); ?>) — no shortage.
+                                <?php endif; ?>
+                            </span>
                         <?php else: ?>
                             Submit your denomination counts after your shift ends.
                         <?php endif; ?>
@@ -385,6 +402,18 @@ if (!empty($shiftAccess['active_shift_id'])) {
                                 <label class="shift-cash-label" for="count20">P 20 bills</label>
                                 <input id="count20" class="shift-cash-input" type="number" min="0" step="1" value="0">
                             </div>
+                            <div class="shift-cash-row">
+                                <label class="shift-cash-label" for="count10">P 10 coins</label>
+                                <input id="count10" class="shift-cash-input" type="number" min="0" step="1" value="0">
+                            </div>
+                            <div class="shift-cash-row">
+                                <label class="shift-cash-label" for="count5">P 5 coins</label>
+                                <input id="count5" class="shift-cash-input" type="number" min="0" step="1" value="0">
+                            </div>
+                            <div class="shift-cash-row">
+                                <label class="shift-cash-label" for="count1">P 1 coins</label>
+                                <input id="count1" class="shift-cash-input" type="number" min="0" step="1" value="0">
+                            </div>
                             <div class="shift-cash-total">
                                 Total Cash: <strong id="cashCountLiveTotal">P 0.00</strong>
                             </div>
@@ -394,14 +423,18 @@ if (!empty($shiftAccess['active_shift_id'])) {
                     confirmButtonText: 'Submit',
                     confirmButtonColor: '#D4AF37',
                     didOpen: () => {
-                        const ids = ['count1000', 'count500', 'count100', 'count50', 'count20'];
+                        const ids = ['count1000', 'count500', 'count100', 'count50', 'count20', 'count10', 'count5', 'count1'];
                         const computeTotal = () => {
                             const c1000 = Number(document.getElementById('count1000').value || 0);
                             const c500 = Number(document.getElementById('count500').value || 0);
                             const c100 = Number(document.getElementById('count100').value || 0);
                             const c50 = Number(document.getElementById('count50').value || 0);
                             const c20 = Number(document.getElementById('count20').value || 0);
-                            const total = (c1000 * 1000) + (c500 * 500) + (c100 * 100) + (c50 * 50) + (c20 * 20);
+                            const c10 = Number(document.getElementById('count10').value || 0);
+                            const c5 = Number(document.getElementById('count5').value || 0);
+                            const c1 = Number(document.getElementById('count1').value || 0);
+                            const total = (c1000 * 1000) + (c500 * 500) + (c100 * 100) + (c50 * 50) + (c20 * 20)
+                                + (c10 * 10) + (c5 * 5) + c1;
                             document.getElementById('cashCountLiveTotal').textContent = 'P ' + total.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2
@@ -419,7 +452,10 @@ if (!empty($shiftAccess['active_shift_id'])) {
                         count_500: Number(document.getElementById('count500').value || 0),
                         count_100: Number(document.getElementById('count100').value || 0),
                         count_50: Number(document.getElementById('count50').value || 0),
-                        count_20: Number(document.getElementById('count20').value || 0)
+                        count_20: Number(document.getElementById('count20').value || 0),
+                        count_10: Number(document.getElementById('count10').value || 0),
+                        count_5: Number(document.getElementById('count5').value || 0),
+                        count_1: Number(document.getElementById('count1').value || 0)
                     })
                 }).then(result => {
                     if (!result.isConfirmed) return;
@@ -430,10 +466,25 @@ if (!empty($shiftAccess['active_shift_id'])) {
                     })
                     .then(r => r.json())
                     .then(data => {
+                        let body = data.message || 'Request failed';
+                        if (data.success) {
+                            const tot = pesos(data.total_cash);
+                            const exp = pesos(data.expected_cash);
+                            const v = Number(data.cash_variance || 0);
+                            let varianceLine = '';
+                            if (v < -0.005) {
+                                varianceLine = 'Cashier short: ' + pesos(Math.abs(v)) + ' (counted vs shift cash sales ' + exp + ').';
+                            } else if (v > 0.005) {
+                                varianceLine = 'Over by ' + pesos(v) + ' vs shift cash sales ' + exp + '.';
+                            } else {
+                                varianceLine = 'No shortage vs shift cash sales ' + exp + '.';
+                            }
+                            body = 'Counted total: ' + tot + '\n\n' + varianceLine;
+                        }
                         Swal.fire({
                             icon: data.success ? 'success' : 'error',
                             title: data.success ? 'Submitted' : 'Cannot Submit',
-                            text: data.message || 'Request failed',
+                            text: body,
                             confirmButtonColor: '#D4AF37'
                         }).then(() => {
                             if (data.success) window.location.reload();

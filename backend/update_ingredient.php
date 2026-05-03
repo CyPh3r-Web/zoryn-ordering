@@ -12,6 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stock = $_POST['ingredientStock'];
         $unit = $_POST['ingredientUnit'];
         $status = $_POST['ingredientStatus'];
+        $moisture_type = isset($_POST['ingredientMoisture']) ? $_POST['ingredientMoisture'] : 'dry';
+        if (!in_array($moisture_type, ['dry', 'wet'], true)) {
+            $moisture_type = 'dry';
+        }
+        $fifo_group_key = isset($_POST['fifo_group_key']) ? trim((string) $_POST['fifo_group_key']) : '';
+        if (strlen($fifo_group_key) > 64) {
+            throw new Exception('FIFO group key must be 64 characters or less.');
+        }
+        $fifo_group_key = $fifo_group_key === '' ? null : $fifo_group_key;
 
         if ($ingredientId <= 0) {
             throw new Exception("Invalid ingredient ID");
@@ -24,13 +33,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sql = "UPDATE ingredients 
                 SET ingredient_name = ?, 
                     category_id = ?, 
+                    fifo_group_key = ?,
                     stock = ?, 
                     unit = ?, 
+                    moisture_type = ?,
                     status = ?,
                     updated_at = NOW()
                 WHERE ingredient_id = ?";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sidssi", $ingredientName, $categoryId, $stock, $unit, $status, $ingredientId);
+        $stmt->bind_param("sisdsssi", $ingredientName, $categoryId, $fifo_group_key, $stock, $unit, $moisture_type, $status, $ingredientId);
 
         // Handle image upload if provided
         if (isset($_FILES['ingredientImage']) && $_FILES['ingredientImage']['error'] === UPLOAD_ERR_OK) {
